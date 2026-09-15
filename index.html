@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4eee9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="SCAR">
+  <title>SCAR · Skin CARe</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="cabecera">
+    <div><p class="marca">SCAR</p><p class="submarca">Skin CARe</p></div>
+    <span id="fechaHoy" class="fecha"></span>
+  </header>
+
+  <main id="app">
+    <section id="vista-hoy" class="vista activa">
+      <div class="hero">
+        <p class="eyebrow">TU PIEL HOY</p>
+        <h1>Hola ✨</h1>
+        <p>Registrá lo que realmente hiciste. No hay una rutina obligatoria.</p>
+      </div>
+
+      <article class="tarjeta">
+        <div class="fila-titulo"><div><span>☀️</span><h2>Mañana</h2></div><button class="texto" data-crear-rutina="mañana">+ Rutina</button></div>
+        <label class="campo-label" for="rutinaManana">Rutina elegida (opcional)</label>
+        <select id="rutinaManana"><option value="">Sin rutina · registro libre</option></select>
+        <div id="productosManana" class="checklist"></div>
+      </article>
+
+      <article class="tarjeta">
+        <div class="fila-titulo"><div><span>🌙</span><h2>Noche</h2></div><button class="texto" data-crear-rutina="noche">+ Rutina</button></div>
+        <label class="campo-label" for="rutinaNoche">Rutina elegida (opcional)</label>
+        <select id="rutinaNoche"><option value="">Sin rutina · registro libre</option></select>
+        <div id="productosNoche" class="checklist"></div>
+      </article>
+
+      <article class="tarjeta">
+        <h2>¿Cómo está tu piel?</h2>
+        <div id="sintomasHoy" class="chips"></div>
+        <label class="campo-label" for="notasHoy">Notas del día</label>
+        <textarea id="notasHoy" rows="4" placeholder="Granitos, sensibilidad, calor, sueño, algo nuevo que probaste…"></textarea>
+      </article>
+
+      <article class="tarjeta">
+        <div class="fila-titulo"><div><span>📷</span><h2>Fotos</h2></div><small id="contadorFotos">0/3</small></div>
+        <p class="ayuda">Se comprimen antes de guardarse y quedan en este dispositivo.</p>
+        <label class="boton secundario" for="fotoInput">Sacar o elegir foto</label>
+        <input id="fotoInput" class="oculto" type="file" accept="image/*" capture="user">
+        <div id="fotosHoy" class="fotos"></div>
+      </article>
+
+      <article class="tarjeta ciclo-resumen">
+        <div><p class="eyebrow">CICLO</p><h2 id="faseHoy">Todavía no tengo datos suficientes</h2><p id="prediccionCiclo" class="ayuda">Con menos de 2 ciclos no hacemos predicciones. 28 días se muestra solo como referencia.</p></div>
+        <button id="botonPeriodo" class="boton periodo">Empezó mi período</button>
+        <button id="cargarPeriodoPasado" class="texto">Cargar fechas pasadas</button>
+      </article>
+    </section>
+
+    <section id="vista-calendario" class="vista"><div class="titulo-vista"><h1>Calendario</h1><p>Tu historial de piel y ciclo.</p></div><div id="calendario"></div></section>
+    <section id="vista-evolucion" class="vista"><div class="titulo-vista"><h1>Evolución</h1><p>Comparaciones y patrones basados solo en tus datos.</p></div><div id="evolucion"></div></section>
+    <section id="vista-productos" class="vista"><div class="titulo-vista"><h1>Productos</h1><p>Tu colección y tus rutinas personalizadas.</p></div><button id="nuevoProducto" class="boton">+ Agregar producto</button><div id="listaProductos"></div><h2 class="separador">Mis rutinas</h2><button id="nuevaRutina" class="boton secundario">+ Crear rutina</button><div id="listaRutinas"></div></section>
+    <section id="vista-ajustes" class="vista"><div class="titulo-vista"><h1>Ajustes</h1><p>Privacidad, backup y almacenamiento.</p></div><div id="ajustes"></div></section>
+  </main>
+
+  <nav class="barra" aria-label="Navegación principal">
+    <button data-vista="hoy" class="activo"><span>♡</span><small>Hoy</small></button>
+    <button data-vista="calendario"><span>▦</span><small>Calendario</small></button>
+    <button data-vista="evolucion"><span>↗</span><small>Evolución</small></button>
+    <button data-vista="productos"><span>◉</span><small>Productos</small></button>
+    <button data-vista="ajustes"><span>⚙</span><small>Ajustes</small></button>
+  </nav>
+
+  <dialog id="modal"><form method="dialog" id="formModal"><div id="modalContenido"></div></form></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
