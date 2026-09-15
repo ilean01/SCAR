@@ -65,6 +65,7 @@
           /></label>
         </div>
         <div class="hero">
+          <span class="sticker hero-sticker" data-sticker="bow" aria-hidden="true"></span>
           <div class="hero-copy">
             <span class="mini-tag">UN PEQUEÑO RITUAL, SOLO TUYO</span>
             <h1>Un ratito<br />para <em>vos.</em></h1>
@@ -93,7 +94,7 @@
             <span class="eyebrow">PASITO A PASITO</span>
             <h2>Mis rituales</h2>
           </div>
-          <span class="handnote">sin apuros, sin reglas ♡</span>
+          <span class="handnote"><span class="sticker inline-sticker" data-sticker="flower" aria-hidden="true"></span>sin apuros, sin reglas ♡</span>
         </div>
         <div class="ritual-grid">
           <article class="tarjeta ritual morning">
@@ -251,7 +252,7 @@
           <aside>
             <article class="tarjeta cycle-card">
               <span class="eyebrow">MI CICLO, MI RITMO</span>
-              <div class="cycle-flower" aria-hidden="true">✿</div>
+              <div id="cycleRing" class="cycle-ring"></div>
               <h2 id="faseHoy">Conocé tu ritmo</h2>
               <p id="prediccionCiclo" class="ayuda"></p>
               <button id="botonPeriodo" class="boton">Empezó mi período</button
@@ -271,25 +272,28 @@
                 </div>
                 <small id="contadorFotos">0/3</small>
               </div>
+              <details class="photo-guide" open><summary>¿Cómo sacar mis fotos? · Ver ángulos</summary><div id="photoGuide"></div></details>
               <div id="fotosHoy" class="fotos"></div>
               <label class="photo-upload" for="fotoInput"
                 ><span data-icon="camera"></span><span>Agregar una foto</span
-                ><small>Un recuerdo de tu piel hoy</small></label
+                ><small>Elegí una imagen de tu galería</small></label
               ><input
                 id="fotoInput"
                 class="sr-only"
                 type="file"
                 accept="image/*"
               />
+              <label class="camera-action" for="cameraInput"><span data-icon="camera"></span> Sacar una foto ahora</label>
+              <input id="cameraInput" class="sr-only" type="file" accept="image/*" capture="user" />
               <p class="fineprint">
-                Hasta 3 fotos por día. Privadas y comprimidas antes de
-                guardarse.
+                Hasta 3 fotos por día. Se comprimen antes de guardarse. En la nube, solo tu cuenta puede acceder.
               </p>
             </article>
             <div class="quote">
-              “Cuidarte también es<br />hablarte bonito.”<span
-                >SCAR · SELF-CARE NOTES</span
-              >
+              <span class="sticker quote-sticker" data-sticker="heart" aria-hidden="true"></span>
+              <p id="dailyQuote" aria-live="polite"></p>
+              <span>UNA FRASE NUEVA CADA DÍA</span>
+              <button id="nextQuote" class="texto" type="button">Otra frase ♡</button>
             </div>
           </aside>
         </div>

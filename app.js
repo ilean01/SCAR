@@ -24,6 +24,7 @@ import {
   readRecord,
 } from "./js/db.js";
 import { Cloud } from "./js/cloud.js";
+import { renderNote, stickers, photoGuide, renderCycleRing } from "./js/journal.js";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   cloud = new Cloud();
@@ -259,6 +260,8 @@ async function renderHoy() {
     )
     .join("");
   const info = cycleInfo(cs, fecha, r.sangrado);
+  renderCycleRing(info, fecha);
+  renderNote();
   $("#faseHoy").textContent = info.title;
   $("#prediccionCiclo").textContent = info.detail;
   const open = cs.find((c) => !c.eliminado && !c.fechaFin);
@@ -284,7 +287,7 @@ async function renderPhotos(r, token) {
   $("#fotosHoy").innerHTML = (r.fotos || [])
     .map(
       (f, i) =>
-        `<div class="foto"><img data-photo-id="${esc(f.id)}" alt="Piel del ${esc(r.fecha)}, ${esc(f.angulo || "frente")}"><button data-delete-photo="${esc(f.id)}" aria-label="Borrar foto ${i + 1}">×</button></div>`,
+        `<div class="foto"><img data-photo-id="${esc(f.id)}" alt="Piel del ${esc(r.fecha)}, ${esc(f.angulo || "sin ángulo")}"><span class="photo-angle">${esc(f.angulo || "Sin ángulo")}</span><button data-delete-photo="${esc(f.id)}" aria-label="Borrar foto ${i + 1}">×</button></div>`,
     )
     .join("");
   for (const f of r.fotos || []) {
@@ -829,9 +832,13 @@ async function renderSettings() {
     errors = pending.filter((r) => r.__error);
   let auth = cloud.user
     ? `<h2>Tu diario, con vos.</h2><p>${esc(cloud.user.email)}</p><div class="status-box">${pending.length ? `${pending.length} cambio(s) pendientes` : "Tus datos están sincronizados."}</div><div class="form-actions"><button class="boton auto" id="syncNow">Sincronizar ahora</button><button class="texto" id="logout">Cerrar sesión</button></div><button class="texto" id="importLocal">Importar datos de este dispositivo</button><p class="fineprint">La importación conserva los originales. Si una fecha ya existe en tu cuenta, la mantiene sin reemplazarla.</p>`
-    : `<h2>Tu diario, donde estés.</h2><p>Entrá con la misma cuenta en tu iPhone, tu compu o tu tablet.</p><form id="authForm">${field("Tu nombre · al crear cuenta", "nombre", "", "text", 'autocomplete="given-name"') + field("Correo electrónico", "email", "", "email", 'required autocomplete="email"') + field("Contraseña", "password", "", "password", 'required minlength="8" autocomplete="current-password"')}<div class="form-actions"><button class="boton" type="submit" name="mode" value="login" ${!cloud.configured ? "disabled" : ""}>Entrar a mi diario</button><button class="boton secundario" type="submit" name="mode" value="signup" ${!cloud.configured ? "disabled" : ""}>Crear mi cuenta</button></div><button class="texto" type="button" id="recover">Olvidé mi contraseña</button><p id="authMessage" class="form-error" role="status"></p></form>${!cloud.configured ? '<p class="ayuda">Primero completá la conexión de Supabase de abajo.</p>' : ""}`;
+    : `<h2>Tu diario, donde estés.</h2><p>Tu cuenta de SCAR es distinta de la cuenta con la que administrás Supabase. Completá tu correo y una contraseña de al menos 8 caracteres; después tocá <strong>Crear mi cuenta</strong>. Si ya tenés una, tocá <strong>Entrar a mi diario</strong>.</p><form id="authForm">${field("Tu nombre · al crear cuenta", "nombre", "", "text", 'autocomplete="given-name"') + field("Correo electrónico", "email", "", "email", 'required autocomplete="email"') + field("Contraseña", "password", "", "password", 'required minlength="8" autocomplete="current-password"')}<div class="form-actions"><button class="boton" type="submit" name="mode" value="login" ${!cloud.configured ? "disabled" : ""}>Entrar a mi diario</button><button class="boton secundario" type="submit" name="mode" value="signup" ${!cloud.configured ? "disabled" : ""}>Crear mi cuenta</button></div><button class="texto" type="button" id="recover">Olvidé mi contraseña</button><p id="authMessage" class="form-error" role="status"></p></form>${!cloud.configured ? '<p class="ayuda">Primero seguí los pasos de activación y guardá la conexión de Supabase de abajo.</p>' : ""}`;
   $("#ajustes").innerHTML =
-    `<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio. Abrí SCAR una vez con internet para preparar el acceso sin conexión.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar. Podés descargar una copia antes de decidir.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}<article class="tarjeta wide"><details ${!cloud.configured ? "open" : ""}><summary>Conexión de Supabase</summary><p>Una sola vez: usá la URL del proyecto y su clave pública publishable o anon.</p><form id="configForm"><div class="form-row"><div>${field("Project URL", "url", cloud.config.supabaseUrl || "", "url", 'required placeholder="https://tu-proyecto.supabase.co"')}</div><div>${field("Publishable key", "key", cloud.config.supabasePublishableKey || "", "text", 'required placeholder="sb_publishable_…"')}</div></div><p class="fineprint">No uses service_role ni una clave secret. Si cambiás de proyecto, primero cerrá sesión.</p><button class="boton secundario auto" type="submit" ${cloud.user ? "disabled" : ""}>Guardar conexión</button><p id="configMessage" class="form-error" role="alert"></p></form></details></article></div>`;
+    `${setupGuide()}<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio. Abrí SCAR una vez con internet para preparar el acceso sin conexión.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar. Podés descargar una copia antes de decidir.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}<article class="tarjeta wide" id="connectionSettings"><details ${!cloud.configured ? "open" : ""}><summary>Conexión de Supabase</summary><p>Una sola vez: usá la URL del proyecto y su clave pública publishable o anon.</p><form id="configForm"><div class="form-row"><div>${field("Project URL", "url", cloud.config.supabaseUrl || "", "url", 'required placeholder="https://tu-proyecto.supabase.co"')}</div><div>${field("Publishable key", "key", cloud.config.supabasePublishableKey || "", "text", 'required placeholder="sb_publishable_…"')}</div></div><p class="fineprint">No uses service_role ni una clave secret. Si cambiás de proyecto, primero cerrá sesión.</p><button class="boton secundario auto" type="submit" ${cloud.user ? "disabled" : ""}>Guardar conexión</button><p id="configMessage" class="form-error" role="alert"></p></form></details></article></div>`;
+}
+function setupGuide() {
+  if (cloud.user) return "";
+  return `<article class="tarjeta setup-guide"><span class="eyebrow">BIENVENIDA A TU PEQUEÑO ESPACIO</span><h2>Tu diario, paso a paso</h2><p>${cloud.configured ? "Conexión guardada en este navegador. Falta entrar y comprobar el guardado." : "Podés usar tu diario aquí. Para llevarlo a otros dispositivos, activá tu nube."}</p><ol class="setup-steps"><li><strong>Prepará la base una sola vez</strong><p>En Supabase → SQL Editor, ejecutá <a href="./supabase/instalar_scar.sql" target="_blank" rel="noopener">instalar_scar.sql</a> si la base está vacía, o <a href="./supabase/migrar_v3_a_v4.sql" target="_blank" rel="noopener">migrar_v3_a_v4.sql</a> si tenés exactamente V3. Si ya instalaste V4, este paso está hecho. No ejecutes ambos.</p></li><li><strong>Activá el acceso por correo</strong><p>En Authentication, habilitá Email y las nuevas altas. En URL Configuration, colocá <code>https://ilean01.github.io/SCAR/</code> como Site URL y Redirect URL.</p></li><li><strong>${cloud.configured ? "Conexión guardada" : "Conectá SCAR"}</strong><p>Copiá la Project URL y la clave pública publishable o anon de tu proyecto. Pegalas en <a href="#connectionSettings">Conexión de Supabase</a>, abajo. Guardar estos valores todavía no verifica la base.</p></li><li><strong>Creá tu cuenta y confirmá tu correo</strong><p>Usá el formulario de abajo. Si se solicita confirmación, abrí el mensaje (revisá también spam), confirmá y volvé a entrar. Usá la misma cuenta en todos tus dispositivos.</p></li><li><strong>Comprobá que tus recuerdos viajan con vos</strong><p>Guardá una nota, tocá Sincronizar ahora y esperá “Todo guardado en la nube”. Abrí otro dispositivo con la misma conexión y cuenta y comprobá que aparezca. Si ya tenías datos aquí, tocá Importar datos de este dispositivo después de entrar.</p></li></ol><details><summary>¿No llega el correo?</summary><p>Revisá spam, la dirección y la configuración de Email en Supabase. El servicio de correo de prueba solo envía a direcciones del equipo del proyecto. Para otras cuentas, configurá un proveedor SMTP en Authentication.</p></details></article>`;
 }
 function clean(r) {
   return Object.fromEntries(
@@ -1035,6 +1042,9 @@ function events() {
         await renderSettings();
       });
     switch (b.id) {
+      case "nextQuote":
+        renderNote(true);
+        break;
       case "nuevoProducto":
         action(() => productModal());
         break;
@@ -1214,7 +1224,7 @@ function events() {
         await renderHoy();
       });
     }
-    if (el.id === "fotoInput") {
+    if (el.id === "fotoInput" || el.id === "cameraInput") {
       const file = el.files[0];
       el.value = "";
       if (file)
@@ -1225,11 +1235,11 @@ function events() {
           modal(
             "Una foto de tu piel",
             select(
-              "Ángulo",
+              "¿Qué lado de tu rostro se ve?",
               "angulo",
               ["frente", "perfil izquierdo", "perfil derecho"],
               "frente",
-            ) + submit("Guardar foto"),
+            ) + '<p class="ayuda">Izquierda y derecha son las de tu rostro, aunque la cámara muestre una imagen en espejo.</p>' + submit("Guardar foto"),
             "photo",
           );
         });
@@ -1261,7 +1271,7 @@ function events() {
             String(f.get("key")).trim(),
           );
           await renderSettings();
-          toast("Conexión guardada. Ya podés iniciar sesión.");
+          toast("Configuración guardada. Creá tu cuenta o iniciá sesión para probar la nube.");
         }
         if (form.id === "authForm") {
           if (mode === "signup") {
@@ -1293,19 +1303,26 @@ function events() {
     status("Sin conexión · guardado aquí"),
   );
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") action(sync);
+    if (document.visibilityState === "visible") {
+      renderNote();
+      action(sync);
+    }
   });
   window.addEventListener("storage", (e) => {
     if (e.key === cloud.sessionKey && cloud.user?.id !== accountId)
       action(switchAccount);
   });
   setInterval(() => {
+    renderNote();
     if (document.visibilityState === "visible" && cloud.user)
       sync().catch(() => {});
   }, 60000);
 }
 async function init() {
   icons();
+  stickers();
+  $("#photoGuide").innerHTML = photoGuide();
+  renderNote();
   guest = await openDB();
   db = guest;
   await normalizeLegacy(guest);

@@ -238,6 +238,8 @@ const today = new Date().toLocaleDateString("en-CA");
     .fill("https://scar-test.supabase.co");
   await page.locator("#configForm [name=key]").fill("sb_publishable_test");
   await page.locator("#configForm button[type=submit]").click();
+  // Wait for the async settings render before filling the new account form.
+  await page.waitForFunction(() => !document.querySelector("#authForm button[value=login]").disabled);
   await page.locator("#authForm [name=email]").fill("a@test.com");
   await page.locator("#authForm [name=password]").fill("test-password");
   await page.locator("#authForm button[value=login]").click();

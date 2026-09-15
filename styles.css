@@ -695,12 +695,45 @@ textarea {
   color: #9c7c85;
   margin: 30px 0;
 }
-.quote span {
+.quote > span:not(.sticker) {
   font: 8px sans-serif;
   letter-spacing: 2px;
   display: block;
   margin-top: 13px;
 }
+.sticker { display: inline-block; width: 68px; height: 68px; pointer-events: none; filter: drop-shadow(0 3px 0 #fff9f3) drop-shadow(0 3px 3px #50394115); }
+.sticker svg { width: 100%; height: 100%; }
+.hero-sticker { position: absolute; top: 18px; right: 24px; transform: rotate(14deg); z-index: 1; }
+.inline-sticker { width: 38px; height: 38px; vertical-align: middle; margin-right: 5px; transform: rotate(-12deg); }
+.quote .quote-sticker { display: block; margin: 0 auto 12px; width: 48px; height: 48px; transform: rotate(-12deg); }
+.quote p { margin: 0; min-height: 100px; display: grid; place-items: center; }
+.quote button { font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin-top: 12px; min-height: 44px; }
+.cycle-ring { position: relative; width: min(100%, 245px); aspect-ratio: 1; margin: 18px auto; }
+.cycle-ring > svg { width: 100%; height: 100%; }
+.cycle-center { position: absolute; inset: 25%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
+.cycle-center strong { font: 32px/1.2 Georgia, serif; }
+.cycle-center > span:last-child { font-size: 10px; color: var(--muted); }
+.photo-guide { margin: 16px 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.photo-guide summary { font-size: 12px; color: var(--rose); padding: 8px 0; }
+.angle-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.angle-grid figure { margin: 0; text-align: center; }
+.angle-grid svg { background: #faf1ef; border-radius: 38px 38px 14px 14px; width: 100%; height: auto; }
+.angle-grid strong { display: block; font-size: 10px; margin-top: 7px; }
+.angle-grid small { display: block; font-size: 9px; line-height: 1.5; color: var(--muted); margin-top: 3px; }
+.photo-tips { padding-left: 18px; font-size: 11px; line-height: 1.7; color: var(--muted); }
+.photo-tips li { margin: 5px 0; }
+.camera-action { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; cursor: pointer; color: var(--rose); font-size: 12px; }
+.photo-angle { position: absolute; bottom: 0; left: 0; right: 0; background: #fffcfaed; padding: 4px; font-size: 9px; text-align: center; }
+.foto button { width: 34px; height: 34px; }
+.setup-guide { background: linear-gradient(120deg,#fcf4f0,#f3e7ec); }
+.setup-guide > p { color: var(--muted); }
+.setup-steps { padding-left: 24px; }
+.setup-steps li { padding: 7px 0 7px 7px; }
+.setup-steps li::marker { color: var(--rose); font-weight: 700; }
+.setup-steps p { color: var(--muted); margin: 5px 0; font-size: 13px; line-height: 1.7; }
+.setup-steps a, .setup-steps code { overflow-wrap: anywhere; color: var(--rose); }
+#connectionSettings { scroll-margin-top: 90px; }
+@media (max-width: 600px) { .hero-sticker { width: 44px; height: 44px; top: 8px; right: 10px; } }
 .footer {
   border-top: 1px solid var(--line);
   display: flex;

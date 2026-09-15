@@ -18,6 +18,15 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
 
+## Novedades visuales V4.1
+
+- La paleta crema, rosa y ciruela se conserva. Stickers SVG propios de moños, flores y corazones, disponibles sin conexión.
+- 31 frases originales: una por día según la fecha local del dispositivo, con botón Otra frase. La selección manual dura mientras la app esté abierta; al reabrir vuelve la frase del día. La colección se repite cada 31 días.
+- Guía dibujada de frente y ambos lados del rostro, consejos de iluminación, acceso a cámara/galería y etiquetas de ángulo. En dispositivos compatibles, Sacar una foto ahora solicita la cámara frontal; la disponibilidad depende del navegador.
+- Círculo decorativo con el día real del ciclo. El arco es ornamental, no una escala de fertilidad ni porcentaje de avance. Las estimaciones siguen usando el historial existente.
+- Guía de activación y creación de cuenta dentro de Mi espacio. Guardar las claves no se presenta como una verificación de conexión.
+- Esta actualización visual no necesita SQL adicional si ya instalaste V4. La nube real sigue pendiente de configurar y verificar en tu proyecto.
+
 ## Lo que incluye
 
 - Nueva estética crema, rosa empolvado y ciruela; ilustraciones y recursos propios, disponibles sin conexión.
