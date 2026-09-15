@@ -1,0 +1,12 @@
+{
+  "name": "SCAR · Skin CARe",
+  "short_name": "SCAR",
+  "description": "Registro personal y privado de skincare y ciclo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f3ef",
+  "theme_color": "#f4eee9",
+  "lang": "es",
+  "orientation": "portrait-primary"
+}
