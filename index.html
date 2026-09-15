@@ -1,83 +1,372 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f4eee9" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="SCAR">
-  <title>SCAR · Skin CARe</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./styles.css">
-</head>
-<body>
-  <header class="cabecera">
-    <div><p class="marca">SCAR</p><p class="submarca">Skin CARe</p></div>
-    <span id="fechaHoy" class="fecha"></span>
-  </header>
-
-  <main id="app">
-    <section id="vista-hoy" class="vista activa">
-      <div class="hero">
-        <p class="eyebrow">TU PIEL HOY</p>
-        <h1>Hola ✨</h1>
-        <p>Registrá lo que realmente hiciste. No hay una rutina obligatoria.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#fcf8f5" />
+    <meta
+      name="description"
+      content="Tu pequeño diario de skincare. Rutinas a tu manera, piel, hábitos y ciclo en un solo lugar."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SCAR" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <title>SCAR · Un ratito para vos</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js" defer></script>
+    <script src="./app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip" href="#app">Ir al contenido</a>
+    <header class="cabecera">
+      <a class="brand" href="./" aria-label="SCAR, inicio"
+        ><span class="brand-flower" aria-hidden="true">✳</span
+        ><span class="marca">scar<span class="brand-dot">.</span></span
+        ><span class="submarca">SKIN CARE<br />SELF CARE</span></a
+      >
+      <div class="header-right">
+        <span id="syncStatus" class="sync-status" role="status"
+          >Guardado en este dispositivo</span
+        ><button class="avatar" data-nav="ajustes" aria-label="Abrir mi cuenta">
+          <span data-icon="user"></span>
+        </button>
       </div>
-
-      <article class="tarjeta">
-        <div class="fila-titulo"><div><span>☀️</span><h2>Mañana</h2></div><button class="texto" data-crear-rutina="mañana">+ Rutina</button></div>
-        <label class="campo-label" for="rutinaManana">Rutina elegida (opcional)</label>
-        <select id="rutinaManana"><option value="">Sin rutina · registro libre</option></select>
-        <div id="productosManana" class="checklist"></div>
-      </article>
-
-      <article class="tarjeta">
-        <div class="fila-titulo"><div><span>🌙</span><h2>Noche</h2></div><button class="texto" data-crear-rutina="noche">+ Rutina</button></div>
-        <label class="campo-label" for="rutinaNoche">Rutina elegida (opcional)</label>
-        <select id="rutinaNoche"><option value="">Sin rutina · registro libre</option></select>
-        <div id="productosNoche" class="checklist"></div>
-      </article>
-
-      <article class="tarjeta">
-        <h2>¿Cómo está tu piel?</h2>
-        <div id="sintomasHoy" class="chips"></div>
-        <label class="campo-label" for="notasHoy">Notas del día</label>
-        <textarea id="notasHoy" rows="4" placeholder="Granitos, sensibilidad, calor, sueño, algo nuevo que probaste…"></textarea>
-      </article>
-
-      <article class="tarjeta">
-        <div class="fila-titulo"><div><span>📷</span><h2>Fotos</h2></div><small id="contadorFotos">0/3</small></div>
-        <p class="ayuda">Se comprimen antes de guardarse y quedan en este dispositivo.</p>
-        <label class="boton secundario" for="fotoInput">Sacar o elegir foto</label>
-        <input id="fotoInput" class="oculto" type="file" accept="image/*" capture="user">
-        <div id="fotosHoy" class="fotos"></div>
-      </article>
-
-      <article class="tarjeta ciclo-resumen">
-        <div><p class="eyebrow">CICLO</p><h2 id="faseHoy">Todavía no tengo datos suficientes</h2><p id="prediccionCiclo" class="ayuda">Con menos de 2 ciclos no hacemos predicciones. 28 días se muestra solo como referencia.</p></div>
-        <button id="botonPeriodo" class="boton periodo">Empezó mi período</button>
-        <button id="cargarPeriodoPasado" class="texto">Cargar fechas pasadas</button>
-      </article>
-    </section>
-
-    <section id="vista-calendario" class="vista"><div class="titulo-vista"><h1>Calendario</h1><p>Tu historial de piel y ciclo.</p></div><div id="calendario"></div></section>
-    <section id="vista-evolucion" class="vista"><div class="titulo-vista"><h1>Evolución</h1><p>Comparaciones y patrones basados solo en tus datos.</p></div><div id="evolucion"></div></section>
-    <section id="vista-productos" class="vista"><div class="titulo-vista"><h1>Productos</h1><p>Tu colección y tus rutinas personalizadas.</p></div><button id="nuevoProducto" class="boton">+ Agregar producto</button><div id="listaProductos"></div><h2 class="separador">Mis rutinas</h2><button id="nuevaRutina" class="boton secundario">+ Crear rutina</button><div id="listaRutinas"></div></section>
-    <section id="vista-ajustes" class="vista"><div class="titulo-vista"><h1>Ajustes</h1><p>Privacidad, backup y almacenamiento.</p></div><div id="ajustes"></div></section>
-  </main>
-
-  <nav class="barra" aria-label="Navegación principal">
-    <button data-vista="hoy" class="activo"><span>♡</span><small>Hoy</small></button>
-    <button data-vista="calendario"><span>▦</span><small>Calendario</small></button>
-    <button data-vista="evolucion"><span>↗</span><small>Evolución</small></button>
-    <button data-vista="productos"><span>◉</span><small>Productos</small></button>
-    <button data-vista="ajustes"><span>⚙</span><small>Ajustes</small></button>
-  </nav>
-
-  <dialog id="modal"><form method="dialog" id="formModal"><div id="modalContenido"></div></form></dialog>
-  <div id="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js" defer></script>
-</body>
+    </header>
+    <nav class="barra" aria-label="Navegación principal">
+      <button data-nav="hoy" class="activo" aria-current="page">
+        <span data-icon="sun"></span><small>Mi día</small></button
+      ><button data-nav="calendario">
+        <span data-icon="calendar"></span><small>Calendario</small></button
+      ><button data-nav="productos">
+        <span data-icon="bottle"></span><small>Mi tocador</small></button
+      ><button data-nav="evolucion">
+        <span data-icon="chart"></span><small>Evolución</small></button
+      ><button data-nav="ajustes">
+        <span data-icon="heart"></span><small>Mi espacio</small>
+      </button>
+    </nav>
+    <main id="app">
+      <section id="vista-hoy" class="vista activa" aria-label="Mi día">
+        <div class="day-heading">
+          <span class="eyebrow">TU DIARIO DE SKINCARE</span
+          ><label class="date-label"
+            ><span data-icon="calendar"></span
+            ><input id="fechaActual" type="date" aria-label="Fecha del diario"
+          /></label>
+        </div>
+        <div class="hero">
+          <div class="hero-copy">
+            <span class="mini-tag">UN PEQUEÑO RITUAL, SOLO TUYO</span>
+            <h1>Un ratito<br />para <em>vos.</em></h1>
+            <p>
+              Escuchá tu piel. Encontrá tu ritmo.<br />Hoy también cuenta
+              cuidarte a tu manera.
+            </p>
+            <span class="hero-signature">with a little self-love ♡</span>
+          </div>
+          <img
+            class="hero-art"
+            src="./assets/ritual.svg"
+            alt="Ilustración de frascos de skincare, una flor y un espejo en tonos rosa y crema"
+          />
+        </div>
+        <div id="cloudBanner" class="connection-banner">
+          <span
+            >Tu diario está guardado aquí. Conectá tu cuenta para llevarlo a
+            todos tus dispositivos.</span
+          ><button class="texto" data-nav="ajustes">
+            Conectar mi cuenta <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">PASITO A PASITO</span>
+            <h2>Mis rituales</h2>
+          </div>
+          <span class="handnote">sin apuros, sin reglas ♡</span>
+        </div>
+        <div class="ritual-grid">
+          <article class="tarjeta ritual morning">
+            <div class="fila-titulo">
+              <div class="title-icon">
+                <span class="icon-disc" data-icon="sun"></span>
+                <div>
+                  <span class="eyebrow">HELLO, SUNSHINE</span>
+                  <h3>Mi mañana</h3>
+                </div>
+              </div>
+              <button
+                class="icon-button"
+                data-new-routine="mañana"
+                aria-label="Crear rutina de mañana"
+              >
+                +
+              </button>
+            </div>
+            <label for="rutinaManana" class="sr-only">Rutina de mañana</label
+            ><select id="rutinaManana" data-routine="mañana"></select>
+            <div id="productosManana" class="checklist"></div>
+            <div class="ritual-bottom">
+              <span id="estadoManana" class="ayuda"></span
+              ><button class="texto" data-finish="mañana">Terminé</button
+              ><button
+                class="texto subtle"
+                data-rest="mañana"
+                aria-label="Descansar por la mañana"
+              >
+                Descansé
+              </button>
+            </div>
+          </article>
+          <article class="tarjeta ritual evening">
+            <div class="fila-titulo">
+              <div class="title-icon">
+                <span class="icon-disc" data-icon="moon"></span>
+                <div>
+                  <span class="eyebrow">SLOW EVENINGS</span>
+                  <h3>Mi noche</h3>
+                </div>
+              </div>
+              <button
+                class="icon-button"
+                data-new-routine="noche"
+                aria-label="Crear rutina de noche"
+              >
+                +
+              </button>
+            </div>
+            <label for="rutinaNoche" class="sr-only">Rutina de noche</label
+            ><select id="rutinaNoche" data-routine="noche"></select>
+            <div id="productosNoche" class="checklist"></div>
+            <div class="ritual-bottom">
+              <span id="estadoNoche" class="ayuda"></span
+              ><button class="texto" data-finish="noche">Terminé</button
+              ><button
+                class="texto subtle"
+                data-rest="noche"
+                aria-label="Descansar por la noche"
+              >
+                Descansé
+              </button>
+            </div>
+          </article>
+        </div>
+        <div class="journal-grid">
+          <div>
+            <article class="tarjeta skin-card">
+              <div class="section-heading compact">
+                <div>
+                  <span class="eyebrow">UN MOMENTO PARA ESCUCHARTE</span>
+                  <h2>¿Cómo está tu piel?</h2>
+                </div>
+                <span class="decor-spark" aria-hidden="true">✧</span>
+              </div>
+              <div
+                id="mood"
+                class="mood-row"
+                role="group"
+                aria-label="Estado de la piel"
+              ></div>
+              <div class="field-title">
+                <span>Sensaciones de hoy</span
+                ><button class="texto" id="nuevoSintoma">+ Agregar</button>
+              </div>
+              <div id="sintomasHoy" class="chips"></div>
+              <div id="intensidades" class="intensity-list"></div>
+              <button class="texto" id="registrarZona">
+                + Anotar una zona del rostro
+              </button>
+              <div id="zonasHoy"></div>
+              <label class="campo-label" for="notasHoy">Querido diario…</label
+              ><textarea
+                id="notasHoy"
+                data-daily="notas"
+                rows="3"
+                placeholder="¿Algo nuevo? ¿Cómo te sentiste? Este espacio es tuyo."
+              ></textarea
+              ><label class="campo-label" for="etiquetasHoy"
+                >Pequeñas etiquetas</label
+              ><input
+                id="etiquetasHoy"
+                placeholder="viaje, playa, tratamiento…"
+                aria-label="Etiquetas separadas por comas"
+              />
+            </article>
+            <article class="tarjeta">
+              <div class="section-heading compact">
+                <div>
+                  <span class="eyebrow">TODO ESTÁ CONECTADO</span>
+                  <h2>Un poquito de bienestar</h2>
+                </div>
+                <span data-icon="leaf"></span>
+              </div>
+              <div class="habit-grid">
+                <label
+                  >Horas de sueño<input
+                    data-daily="horas_sueno"
+                    type="number"
+                    min="0"
+                    max="24"
+                    step="0.5"
+                    placeholder="—" /></label
+                ><label
+                  >Vasos de agua<input
+                    data-daily="vasos_agua"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="—" /></label
+                ><label
+                  >Estrés<select data-daily="estres">
+                    <option value="">Sin registrar</option>
+                    <option value="1">1 · En calma</option>
+                    <option value="2">2 · Poco</option>
+                    <option value="3">3 · Medio</option>
+                    <option value="4">4 · Bastante</option>
+                    <option value="5">5 · Mucho</option>
+                  </select></label
+                ><label
+                  >Sangrado<select data-daily="sangrado">
+                    <option value="">Sin registrar</option>
+                    <option value="ninguno">Ninguno</option>
+                    <option value="leve">Leve</option>
+                    <option value="moderado">Moderado</option>
+                    <option value="abundante">Abundante</option>
+                  </select></label
+                >
+              </div>
+              <div id="habitos" class="chips"></div>
+            </article>
+          </div>
+          <aside>
+            <article class="tarjeta cycle-card">
+              <span class="eyebrow">MI CICLO, MI RITMO</span>
+              <div class="cycle-flower" aria-hidden="true">✿</div>
+              <h2 id="faseHoy">Conocé tu ritmo</h2>
+              <p id="prediccionCiclo" class="ayuda"></p>
+              <button id="botonPeriodo" class="boton">Empezó mi período</button
+              ><button id="cargarPeriodoPasado" class="texto">
+                Ver o editar mis períodos
+              </button>
+              <p class="fineprint">
+                Las fases son estimaciones. No confirman ovulación ni sirven
+                como método anticonceptivo.
+              </p>
+            </article>
+            <article class="tarjeta photo-card">
+              <div class="fila-titulo">
+                <div>
+                  <span class="eyebrow">MI PIEL, SIN FILTROS</span>
+                  <h2>Pequeños cambios</h2>
+                </div>
+                <small id="contadorFotos">0/3</small>
+              </div>
+              <div id="fotosHoy" class="fotos"></div>
+              <label class="photo-upload" for="fotoInput"
+                ><span data-icon="camera"></span><span>Agregar una foto</span
+                ><small>Un recuerdo de tu piel hoy</small></label
+              ><input
+                id="fotoInput"
+                class="sr-only"
+                type="file"
+                accept="image/*"
+              />
+              <p class="fineprint">
+                Hasta 3 fotos por día. Privadas y comprimidas antes de
+                guardarse.
+              </p>
+            </article>
+            <div class="quote">
+              “Cuidarte también es<br />hablarte bonito.”<span
+                >SCAR · SELF-CARE NOTES</span
+              >
+            </div>
+          </aside>
+        </div>
+      </section>
+      <section id="vista-calendario" class="vista">
+        <div class="titulo-vista">
+          <span class="eyebrow">UN DÍA A LA VEZ</span>
+          <h1>Tu historia, <em>día a día.</em></h1>
+          <p>Tocá una fecha para volver a ese pequeño momento.</p>
+        </div>
+        <div class="tarjeta" id="calendario"></div>
+      </section>
+      <section id="vista-productos" class="vista">
+        <div class="titulo-vista">
+          <span class="eyebrow">YOUR LITTLE BEAUTY SHELF</span>
+          <h1>Mi <em>tocador.</em></h1>
+          <p>Lo que te acompaña, lo que probás y lo que volvés a elegir.</p>
+        </div>
+        <div class="toolbar">
+          <label class="search"
+            ><span data-icon="search"></span
+            ><input
+              id="buscarProducto"
+              type="search"
+              placeholder="Buscar en mi colección"
+              aria-label="Buscar productos" /></label
+          ><button id="nuevoProducto" class="boton auto">+ Producto</button>
+        </div>
+        <div id="listaProductos" class="product-grid"></div>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">A TU MANERA</span>
+            <h2>Mis rutinas</h2>
+          </div>
+          <button id="nuevaRutina" class="boton secundario auto">
+            + Crear rutina
+          </button>
+        </div>
+        <div id="listaRutinas" class="product-grid"></div>
+      </section>
+      <section id="vista-evolucion" class="vista">
+        <div class="titulo-vista">
+          <span class="eyebrow">MIRÁ TODO LO QUE CAMBIÓ</span>
+          <h1>Pequeños pasos.<br /><em>Tu evolución.</em></h1>
+          <p>Sin compararte con nadie. Solo vos y tu piel.</p>
+        </div>
+        <div id="evolucion"></div>
+      </section>
+      <section id="vista-ajustes" class="vista">
+        <div class="titulo-vista">
+          <span class="eyebrow">MAKE YOURSELF AT HOME</span>
+          <h1>Mi <em>espacio.</em></h1>
+          <p>Tu cuenta, tus recuerdos y tus preferencias.</p>
+        </div>
+        <div id="ajustes"></div>
+      </section>
+      <footer class="footer">
+        <span class="marca">scar.</span
+        ><span>Un diario de piel. Un poquito de amor propio.</span
+        ><span>MADE FOR YOUR OWN PACE ♡</span>
+      </footer>
+    </main>
+    <dialog id="modal" aria-labelledby="modalTitle">
+      <button
+        type="button"
+        id="cerrarModal"
+        class="modal-close"
+        aria-label="Cerrar formulario"
+      >
+        ×
+      </button>
+      <form id="formModal">
+        <div id="modalContenido"></div>
+        <p id="modalError" class="form-error" role="alert"></p>
+      </form>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Activá JavaScript para abrir tu diario SCAR.</noscript>
+  </body>
 </html>

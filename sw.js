@@ -1,20 +1,67 @@
-// Service worker de SCAR. Cachea solo la aplicación; los datos personales viven en IndexedDB.
-const CACHE = 'scar-app-v1';
-const ARCHIVOS = ['./','./index.html','./styles.css','./app.js','./manifest.json'];
-
-self.addEventListener('install', evento => {
-  evento.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener('activate', evento => {
-  evento.waitUntil(caches.keys().then(claves => Promise.all(claves.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
-});
-
-self.addEventListener('fetch', evento => {
-  if (evento.request.method !== 'GET') return;
-  evento.respondWith(caches.match(evento.request).then(cacheado => cacheado || fetch(evento.request).then(respuesta => {
-    const copia = respuesta.clone();
-    caches.open(CACHE).then(cache => cache.put(evento.request, copia));
-    return respuesta;
-  }).catch(() => caches.match('./index.html'))));
+// Solo recursos de la app: jamás respuestas Auth, API ni fotos personales.
+const CACHE = "scar-app-v4.0.0";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./config.js",
+  "./js/core.js",
+  "./js/db.js",
+  "./js/cloud.js",
+  "./manifest.json",
+  "./assets/icon.svg",
+  "./assets/ritual.svg",
+  "./assets/apple-touch-icon.png",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+];
+const allowed = new Set(
+  ASSETS.map((p) => new URL(p, self.registration.scope).href),
+);
+self.addEventListener("install", (e) =>
+  e.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(ASSETS))
+      .then(() => self.skipWaiting()),
+  ),
+);
+self.addEventListener("activate", (e) =>
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith("scar-app-") && k !== CACHE)
+            .map((k) => caches.delete(k)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  ),
+);
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (
+    req.method !== "GET" ||
+    !allowed.has(req.url) ||
+    req.headers.has("Authorization")
+  )
+    return;
+  e.respondWith(
+    fetch(req)
+      .then((r) => {
+        if (r.ok && r.type === "basic") {
+          const copy = r.clone();
+          e.waitUntil(caches.open(CACHE).then((c) => c.put(req, copy)));
+        }
+        return r;
+      })
+      .catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        return new Response("Sin conexión", { status: 503 });
+      }),
+  );
 });
