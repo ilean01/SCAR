@@ -361,7 +361,7 @@ async function renderProducts() {
             (e) => !e.eliminado && e.producto_id === p.id,
           ),
           current = packs.find((e) => e.estado !== "terminado");
-        return `<article class="product"><div class="product-art">${icon("bottle")}</div><span class="eyebrow">${esc(p.marca || p.categoria || "MI COLECCIÓN")}</span><h3>${esc(p.nombre)}</h3><p>${esc(p.momento)}${p.favorito ? " · ♡ Favorito" : ""}${p.activo === false ? " · En pausa" : ""}</p>${p.en_prueba ? `<span class="pill">En evaluación desde ${esc(p.fecha_inicio_prueba || "fecha pendiente")}</span>` : ""}${current ? `<span class="pill">${esc(current.estado)}${expiry(current) ? " · " + esc(expiry(current)) : ""}</span>` : '<span class="pill">Sin envase registrado</span>'}<div class="product-actions"><button class="texto" data-edit-product="${esc(p.id)}">Editar producto</button><button class="texto" data-packs="${esc(p.id)}">Envases (${packs.length})</button></div></article>`;
+        return `<article class="product"><div class="product-art">${icon("bottle")}</div><span class="eyebrow">${esc(p.marca || p.categoria || "MI COLECCIÓN")}</span><h3>${esc(p.nombre)}</h3><p>${esc(p.momento)}${p.favorito ? " · ♡ Favorito" : ""}${p.activo === false ? " · En pausa" : ""}</p>${p.en_prueba ? `<span class="pill">En evaluación desde ${esc(p.fecha_inicio_prueba || "fecha pendiente")}</span>` : ""}${current ? `<span class="pill">${esc(current.estado)}${expiry(current) ? " · " + esc(expiry(current)) : ""}</span>` : '<span class="pill">Sin envase registrado</span>'}<div class="product-actions"><button class="texto" data-edit-product="${esc(p.id)}">Editar producto</button></div></article>`;
       })
       .join("") ||
     '<div class="empty">Tu tocador está listo para tus favoritos.<br>Agregá un producto para empezar.</div>';
@@ -447,6 +447,7 @@ async function productModal(id) {
       `<label class="check"><input type="checkbox" name="en_prueba" ${p.en_prueba ? "checked" : ""}>Quiero evaluar si este producto me sirve</label>` +
       `<div class="form-row"><div>${field("Inicio de la prueba", "fecha_inicio_prueba", p.fecha_inicio_prueba || "", "date", `max="${dateISO()}"`)}</div><div>${field("Fin de la prueba · opcional", "fecha_fin_prueba", p.fecha_fin_prueba || "", "date", `max="${dateISO()}"`)}</div></div>` +
       field("Notas", "notas", p.notas || "") +
+      '<details><summary>Envases · compras, precio y duración</summary><p class="ayuda">Podés agregar un envase o editar los anteriores. Al continuar se guardan también los cambios del producto.</p><button class="boton secundario" type="submit" name="next" value="packs">Guardar y gestionar envases</button></details>' +
       submit() +
       (id
         ? `<button class="boton danger" type="button" data-archive-product="${esc(id)}">Archivar producto</button>`
@@ -763,6 +764,11 @@ async function saveForm(e) {
       toast("Contraseña actualizada.");
     }
     if (t) await save(t, r);
+    if (kind === "producto" && button?.value === "packs") {
+      await renderCurrent();
+      await packList(r.id);
+      return;
+    }
     $("#modal").close();
     await renderCurrent();
     toast(
