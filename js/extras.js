@@ -37,6 +37,7 @@ export function initExtras(api) {
   day.append(details);
   details.insertAdjacentHTML("beforebegin", '<article id="quickCard" class="tarjeta"><span class="eyebrow">LO ESENCIAL, A TU MANERA</span><h2>Un toque para cuidarte</h2><div id="quickMood"></div><div id="quickRoutine"></div><div class="form-actions"><button class="boton auto" id="freeCare">+ Otro cuidado</button><button class="boton secundario auto" id="quickPhoto">+ Foto</button><button class="texto" id="ghostCamera">Cámara con guía</button></div><div id="careList"></div><div id="quickPhotos"></div><div id="weatherCard"></div></article>');
   details.insertAdjacentHTML("afterend", '<section id="completedRituals" hidden><div class="section-heading compact"><div><span class="eyebrow">LISTO POR HOY</span><h2>Cuidados terminados</h2></div><span aria-hidden="true">♡</span></div><div id="completedRitualList" class="ritual-grid"></div></section>');
+  $("#completedRituals").append($("#careList"));
   $("#quickMood").append($("#mood"));
   morningCard = document.querySelector(".ritual.morning");
   nightCard = document.querySelector(".ritual.evening");
@@ -67,7 +68,7 @@ export function initExtras(api) {
         await A.mutate(r => {
           r.sesiones ||= {}; r.sesiones.cuidados ||= [];
           const previous = r.sesiones.cuidados.find(x => x.id === form.dataset.edit) || {};
-          const entry = {...previous,id:form.dataset.edit || crypto.randomUUID(),nombre:name,hora:data.get("time"),productos:data.getAll("product").map(id => ({id,nombre:form.querySelector(`[value="${id}"]`).dataset.name})),notas:String(data.get("notes")),estado:"terminada"};
+          const entry = {...previous,id:form.dataset.edit || crypto.randomUUID(),nombre:name,hora:data.get("time") || (form.dataset.date === dateISO() ? time() : ""),productos:data.getAll("product").map(id => ({id,nombre:form.querySelector(`[value="${id}"]`).dataset.name})),notas:String(data.get("notes")),estado:"terminada"};
           const i = r.sesiones.cuidados.findIndex(x => x.id === entry.id);
           if(i < 0) r.sesiones.cuidados.push(entry); else r.sesiones.cuidados[i] = entry;
         },true,form.dataset.date);
@@ -86,7 +87,7 @@ export async function renderExtras(r) {
   completedList.replaceChildren();
   const finishedCards = [["mañana", morningCard], ["noche", nightCard]].filter(([moment]) => r.sesiones?.[moment]?.estado === "terminada");
   finishedCards.forEach(([, card]) => completedList.append(card));
-  completed.hidden = finishedCards.length === 0;
+  completed.hidden = finishedCards.length === 0 && !(r.sesiones?.cuidados || []).length;
   if(today && period.key !== "extra") {
     const activeCard = period.key === "mañana" ? morningCard : nightCard;
     if(r.sesiones?.[period.key]?.estado !== "terminada") holder.append(activeCard);

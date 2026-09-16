@@ -2,6 +2,7 @@ import { cycleInfo, dayDiff, addDays } from "./core.js";
 
 const skinRecorded = r => r.estado_piel != null || r.sintomas?.length || r.zonas?.length;
 const used = (r, id) => ["mañana", "noche"].some(m => r.productosUsados?.[m]?.includes(id)) || r.sesiones?.cuidados?.some(c => c.productos?.some(p => p.id === id));
+const applications = (r, id) => ["mañana", "noche"].filter(m => r.productosUsados?.[m]?.includes(id)).length + (r.sesiones?.cuidados || []).filter(c => c.productos?.some(p => p.id === id)).length;
 const mean = rows => rows.length ? rows.reduce((n, r) => n + r.estado_piel, 0) / rows.length : null;
 
 export function phaseName(cycles, r) {
@@ -14,7 +15,7 @@ export function cycleObservations(records, cycles, symptoms, zoneName, minimum =
   const eligible = records.filter(r => !r.eliminado && skinRecorded(r)).map(r => ({...r, phase: phaseName(cycles, r)})).filter(r => r.phase);
   const groups = new Map();
   for (const r of eligible) for (const z of r.zonas || []) {
-    if (!z.sintoma_id) continue;
+    if (!z.sintoma_id || z.intensidad === 0) continue;
     const key = `${z.zona_id}:${z.sintoma_id}:${r.phase}`;
     if (!groups.has(key)) groups.set(key, {zone: zoneName(z.zona_id), symptom: symptoms.find(s => s.id === z.sintoma_id)?.nombre || "Síntoma archivado", phase: r.phase, dates: new Set()});
     groups.get(key).dates.add(r.fecha);
@@ -44,7 +45,8 @@ export function inventoryObservations(records, products, packs, today) {
   const details = packs.filter(e => !e.eliminado && e.fecha_apertura).map(e => {
     const p = products.find(p => p.id === e.producto_id), end = e.fecha_fin || (e.estado === "terminado" ? null : today);
     const days = end ? dayDiff(end,e.fecha_apertura)+1 : null;
-    const uses = records.filter(r => !r.eliminado && r.fecha >= e.fecha_apertura && (!end || r.fecha <= end) && used(r,e.producto_id)).length;
+    const overlapping = packs.some(other => other.id !== e.id && !other.eliminado && other.producto_id === e.producto_id && other.fecha_apertura && other.fecha_apertura <= (end || today) && (other.fecha_fin || today) >= e.fecha_apertura);
+    const uses = end && !overlapping ? records.filter(r => !r.eliminado && r.fecha >= e.fecha_apertura && r.fecha <= end).reduce((n,r) => n + applications(r,e.producto_id), 0) : 0;
     return {pack:e, product:p, days, uses, costPerUse:e.precio != null && uses ? Number(e.precio)/uses : null};
   });
   for (const d of details.filter(x => !x.pack.fecha_fin && x.pack.estado !== "terminado")) {
