@@ -1,0 +1,14 @@
+ACTUALIZACIÓN SCAR V6
+
+1. En GitHub Desktop, con el repositorio SCAR abierto, pulsá “Show in Finder”.
+2. Descomprimí este archivo.
+3. Copiá todo el contenido de la carpeta SCAR_V6_ACTUALIZACION dentro de tu carpeta SCAR.
+4. Cuando macOS pregunte, elegí “Reemplazar” o “Aplicar a todos”.
+5. No copies este archivo INSTRUCCIONES.txt dentro del repositorio.
+6. Volvé a GitHub Desktop: ahora aparecerán los archivos modificados.
+7. En Summary escribí: SCAR V6
+8. Pulsá “Commit to main” y después “Push origin”.
+9. En Supabase → SQL Editor → New query, ejecutá una sola vez el archivo:
+   supabase/migrar_v5_a_v6.sql
+
+La migración conserva los datos existentes.

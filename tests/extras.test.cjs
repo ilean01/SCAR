@@ -9,6 +9,7 @@ const root = path.join(__dirname,'..');
  try {
  const context=await browser.newContext({viewport:{width:390,height:844},permissions:['camera','geolocation'],geolocation:{latitude:-25.28,longitude:-57.63}});
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(() => { window.SCAR_TEST_GUEST = true; });
  await page.goto('http://127.0.0.1:4175');await page.locator('#freeCare').waitFor();
  assert.equal(await page.locator('#moreDetails').getAttribute('open'),null);
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${width}`);}

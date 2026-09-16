@@ -36,6 +36,7 @@ export function initExtras(api) {
   details.prepend(start); details.insertBefore(details.querySelector("summary"), details.firstChild);
   day.append(details);
   details.insertAdjacentHTML("beforebegin", '<article id="quickCard" class="tarjeta"><span class="eyebrow">LO ESENCIAL, A TU MANERA</span><h2>Un toque para cuidarte</h2><div id="quickMood"></div><div id="quickRoutine"></div><div class="form-actions"><button class="boton auto" id="freeCare">+ Otro cuidado</button><button class="boton secundario auto" id="quickPhoto">+ Foto</button><button class="texto" id="ghostCamera">Cámara con guía</button></div><div id="careList"></div><div id="quickPhotos"></div><div id="weatherCard"></div></article>');
+  details.insertAdjacentHTML("afterend", '<section id="completedRituals" hidden><div class="section-heading compact"><div><span class="eyebrow">LISTO POR HOY</span><h2>Cuidados terminados</h2></div><span aria-hidden="true">♡</span></div><div id="completedRitualList" class="ritual-grid"></div></section>');
   $("#quickMood").append($("#mood"));
   morningCard = document.querySelector(".ritual.morning");
   nightCard = document.querySelector(".ritual.evening");
@@ -79,10 +80,18 @@ export async function renderExtras(r) {
   if(!A) return;
   const period = daypart(), today = r.fecha === dateISO();
   shownPeriod = dateISO() + period.key;
-  const holder = $("#currentCare"), grid = document.querySelector(".ritual-grid");
+  const holder = $("#currentCare"), grid = document.querySelector("#moreDetails .ritual-grid"), completed = $("#completedRituals"), completedList = $("#completedRitualList");
   grid.append(morningCard, nightCard);
   holder.replaceChildren();
-  if(today && period.key !== "extra") holder.append(period.key === "mañana" ? morningCard : nightCard);
+  completedList.replaceChildren();
+  const finishedCards = [["mañana", morningCard], ["noche", nightCard]].filter(([moment]) => r.sesiones?.[moment]?.estado === "terminada");
+  finishedCards.forEach(([, card]) => completedList.append(card));
+  completed.hidden = finishedCards.length === 0;
+  if(today && period.key !== "extra") {
+    const activeCard = period.key === "mañana" ? morningCard : nightCard;
+    if(r.sesiones?.[period.key]?.estado !== "terminada") holder.append(activeCard);
+    else holder.innerHTML = `<article class="tarjeta current-finished"><span class="eyebrow">RITUAL COMPLETADO</span><h2>Ya terminaste tu ${period.key}</h2><p>Quedó registrada a las ${esc(r.sesiones[period.key].hora || "hora indicada")}. La tarjeta pasó al final del día.</p></article>`;
+  }
   else if(today) {
     holder.innerHTML = '<article class="tarjeta afternoon"><span class="eyebrow">15:00–20:00 · A TU MANERA</span><h2>Un cuidado extra</h2><p>Una mascarilla, un retoque o lo que elijas. Este momento es opcional.</p><button class="boton" id="afternoonCare">+ Agregar cuidado de tarde</button></article>';
     $("#afternoonCare").onclick = () => A.action(() => careForm(null,null,"Cuidado de tarde"));

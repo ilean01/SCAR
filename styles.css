@@ -18,6 +18,10 @@
 #quickCard { margin-top: 20px; }
 #currentCare { margin-top: 18px; }
 #currentCare .ritual { margin-bottom: 0; }
+.current-finished { background: var(--sage); }
+#completedRituals { margin-top: 24px; }
+#completedRituals[hidden] { display: none; }
+#completedRitualList .ritual { opacity: .88; }
 .afternoon { background: var(--sage); }
 .time-window { margin: 0 0 10px; }
 #quickCard h2 { font-size: 26px; }
@@ -60,6 +64,26 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
+.auth-required > .cabecera,
+.auth-required > .barra,
+.auth-required > #app { display: none; }
+.auth-gate {
+  min-height: 100dvh;
+  padding: max(28px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 15% 10%, #f3dce3 0 12%, transparent 30%), linear-gradient(145deg, #fffaf7, #f5e7eb);
+}
+.auth-gate[hidden] { display: none; }
+.auth-gate-card { position: relative; width: min(460px, 100%); padding: 38px; border: 1px solid var(--line); border-radius: 30px; background: #fffdfbcc; box-shadow: 0 24px 70px #76505c22; }
+.auth-gate-card h1 { font-family: Georgia, serif; font-size: clamp(34px, 9vw, 52px); line-height: 1; margin: 14px 0; }
+.auth-gate-card .boton { width: 100%; margin-top: 18px; }
+.auth-sticker { position: absolute; right: 24px; top: 22px; width: 50px; height: 50px; }
+.signup-details { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.signup-details summary { color: var(--rose); cursor: pointer; }
+.insight { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: #fffdfb; }
+.insight p { margin: 6px 0; }
+.stats.mini { margin: 12px 0; }
 button,
 input,
 select,

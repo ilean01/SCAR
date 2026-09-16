@@ -11,12 +11,19 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 3. Pegá todo el archivo y ejecutalo. Ambos usan una transacción. La migración conserva datos y puede repetirse. El instalador es para una base vacía y no debe repetirse. Si tenés V1/V2 u otra estructura, primero comparala con V3; no borres tablas para evitar el error.
 4. En **Authentication → URL Configuration**, agregá `https://ilean01.github.io/SCAR/` como Site URL y Redirect URL. Si usás otra dirección, reemplazala en esos ajustes.
 5. En **Authentication → Providers**, habilitá Email. Con confirmación de correo activa, confirmá el mensaje antes del primer inicio de sesión. La recuperación de contraseña vuelve a la misma app mediante un enlace de correo.
-6. Copiá **Project URL** y la **publishable key** (o `anon` legacy) desde la configuración API de Supabase.
-7. En SCAR, abrí **Mi espacio → Conexión de Supabase**, pegá esos dos valores, guardá y creá tu cuenta. También podés completar `config.js` para no configurarlos en cada dispositivo.
-8. En GitHub: **Settings → Pages → Deploy from a branch → main → /(root)**. No requiere GitHub Actions ni un dominio personalizado.
-9. Entrá con la misma cuenta en los demás dispositivos. En Safari: **Compartir → Agregar a inicio**.
+6. La URL y la clave pública de este proyecto ya están en `config.js`; en cada dispositivo solo se pide correo y contraseña.
+7. En GitHub: **Settings → Pages → Deploy from a branch → main → /(root)**. No requiere GitHub Actions ni un dominio personalizado.
+8. Entrá con la misma cuenta en los demás dispositivos. En Safari: **Compartir → Agregar a inicio**.
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
+
+## V6 · cuenta y análisis descriptivos
+
+- Sin una sesión válida, SCAR muestra primero el acceso y oculta el diario. La conexión pública de Supabase ya está incorporada; nunca se incluye una clave secreta.
+- Piel ↔ ciclo: cruza síntomas por zona con fases estimadas. Oculta porcentajes con menos de cinco días comparables, muestra el denominador y no afirma causalidad.
+- Productos en prueba: compara ventanas de igual duración antes y después de la fecha de inicio, con muestras visibles y advertencias sobre clima, ciclo, hábitos y otros productos.
+- Envases: gasto anual separado por moneda, duración real, costo por uso y fecha orientativa basada en envases anteriores. Ejecutar `supabase/migrar_v5_a_v6.sql` después de V5.
+- Recordatorios: genera un `.ics` diario para el calendario. Web Push queda fuera de V6 porque requiere VAPID y una función de envío operativa.
 
 ## V5 · registro rápido, cuidados libres y fotos
 
@@ -30,7 +37,7 @@ La pantalla inicial prioriza carita, rutina habitual y foto. “Agregar más” 
 - Importación de fotos: acepta archivos de imagen sin MIME declarado, carga mediante eventos y alternativa ImageBitmap. HEIC depende del decodificador del navegador; si no puede abrirse, se indica usar JPG/PNG o la cámara con guía. No se promete conversión universal de HEIC ni compatibilidad con todos los navegadores integrados.
 - Fotos de productos: miniatura JPEG de hasta 400 px, guardada en `productos.foto` con RLS. Hace falta ejecutar **supabase/migrar_v4_a_v5.sql** después de V4. El RPC V5 evita informar que la foto se sincronizó si la migración falta. No hay bucket público. Para una instalación nueva: instalador V4 y después migración V5. No volver a ejecutar la migración V3 después de V5.
 - Clima: Open-Meteo, solo tras activar la opción y aceptar geolocalización. Envía coordenadas redondeadas a dos decimales; no se guardan. Registra temperatura, humedad, fuente y hora del modelo. Consulta una vez por día al abrir la app, con actualización manual; nunca usa clima actual para rellenar el pasado. Si falla o se rechaza el permiso, el diario sigue funcionando. La API gratuita está pensada para uso no comercial; revisar sus condiciones antes de comercializar SCAR.
-- Estadísticas: porcentajes de uso y promedio de piel ocultos con n < 5, denominadores visibles; los días sin registro no cuentan como ausencia de síntomas. No hay inferencia causal ni correlaciones por fase del ciclo.
+- Estadísticas: porcentajes de uso y promedio de piel ocultos con n < 5, denominadores visibles; los días sin registro no cuentan como ausencia de síntomas.
 
 Los permisos de cámara/geolocalización y los formatos de foto deben probarse también en el iPhone físico. Las pruebas automatizadas usan Chromium, cámara simulada y API meteorológica simulada; no configuran tu Supabase real.
 
@@ -78,10 +85,11 @@ Las lecturas se paginan y no se cachean respuestas Auth/API en el service worker
 
 - `app.js`: interfaz, formularios y eventos.
 - `js/core.js`: fechas, rutinas, ciclos y vencimientos.
+- `js/analytics.js`: cruces descriptivos de piel, ciclo, productos y envases.
 - `js/db.js`: guardado local, migración e importación.
 - `js/cloud.js`: API Auth, RPC, sincronización y Storage.
 - `config.js`: configuración pública de la conexión.
-- `supabase/`: instalador y migración V3 → V4.
+- `supabase/`: instalador y migraciones sucesivas.
 - `tests/core.test.js`: pruebas de lógica sin dependencias.
 - `tests/database.test.mjs`: pruebas de SQL/RLS con PostgreSQL embebido y esquemas Auth/Storage simulados.
 
@@ -113,4 +121,4 @@ node tests/browser.test.cjs
 
 La prueba levanta su propio servidor local y cubre formularios, calendario, guardado sin conexión, fotos, conflictos y separación de cuentas. `SCAR_CHROMIUM` permite indicar otra instalación local de Chromium.
 
-La app todavía no tiene credenciales de tu proyecto incorporadas y este cambio de Git no ejecuta SQL en Supabase.
+La app incorpora solamente la URL y la clave pública publishable. Ningún cambio de Git ejecuta SQL automáticamente en Supabase.

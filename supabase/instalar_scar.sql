@@ -71,6 +71,10 @@ create table public.productos (
   nombre text not null,
   marca text,
   categoria text,
+  foto text check (
+    foto is null or
+    (length(foto)<=400000 and foto ~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$')
+  ),
 
   momento text not null default 'ambos'
     check (momento in ('mañana','noche','ambos')),
@@ -1144,13 +1148,14 @@ create table if not exists public.envases (
  id uuid primary key default gen_random_uuid(),
  user_id uuid not null references auth.users(id) on delete cascade,
  producto_id uuid not null references public.productos(id),
- fecha_compra date, fecha_apertura date, fecha_vencimiento date,
+ fecha_compra date, fecha_apertura date, fecha_vencimiento date, fecha_fin date,
  meses_pao integer check(meses_pao>0), precio numeric(12,2) check(precio>=0),
  moneda text not null default 'PYG' check(moneda in ('PYG','USD','BRL','ARS')),
  estado text not null default 'nuevo' check(estado in ('nuevo','en uso','casi terminado','terminado')),
  notas text, eliminado boolean not null default false, eliminado_en timestamptz,
  creado_en timestamptz not null default now(), actualizado_en timestamptz not null default now(),
- check(fecha_apertura is null or fecha_compra is null or fecha_apertura>=fecha_compra)
+ check(fecha_apertura is null or fecha_compra is null or fecha_apertura>=fecha_compra),
+ check(fecha_fin is null or fecha_apertura is null or fecha_fin>=fecha_apertura)
 );
 alter table public.envases enable row level security;
 drop policy if exists "envases propios" on public.envases;
@@ -1293,12 +1298,12 @@ begin
  if v<>p_revision then return jsonb_build_object('conflict',true,'revision',v,'id',actual->>'id'); end if;
  if actual is not null then ident=(actual->>'id')::uuid; end if;
  permitido=case p_tabla
- when 'productos' then array['nombre','marca','categoria','momento','notas','activo','favorito','puntaje','recompraria','en_prueba','fecha_inicio_prueba','fecha_fin_prueba','eliminado']
+ when 'productos' then array['nombre','marca','categoria','momento','notas','activo','favorito','puntaje','recompraria','en_prueba','fecha_inicio_prueba','fecha_fin_prueba','eliminado','foto']
  when 'rutinas' then array['nombre','momento','descripcion','activa','eliminado']
  when 'registros' then array['fecha','rutina_manana_id','rutina_noche_id','estado_piel','horas_sueno','vasos_agua','estres','uso_protector','ejercicio','maquillaje','alcohol','viaje','mucho_calor','exposicion_sol','temperatura','humedad','notas','diario','sesiones','etiquetas_libres','sangrado','eliminado']
  when 'ciclos' then array['fecha_inicio','fecha_fin','intensidad_sangrado','notas','eliminado']
  when 'sintomas' then array['nombre','tipo','activo','eliminado']
- when 'envases' then array['producto_id','fecha_compra','fecha_apertura','fecha_vencimiento','meses_pao','precio','moneda','estado','notas','eliminado'] end;
+ when 'envases' then array['producto_id','fecha_compra','fecha_apertura','fecha_vencimiento','fecha_fin','meses_pao','precio','moneda','estado','notas','eliminado'] end;
  datos=jsonb_build_object('id',ident,'user_id',uid);
  foreach k in array permitido loop if p_datos ? k then datos=datos||jsonb_build_object(k,p_datos->k); end if; end loop;
  select string_agg(format('%I',key),','),string_agg(format('x.%I',key),','),string_agg(format('%I=excluded.%I',key,key),',')
@@ -1350,6 +1355,13 @@ begin
 end $$;
 revoke all on function public.scar_guardar(text,jsonb,bigint) from public,anon;
 grant execute on function public.scar_guardar(text,jsonb,bigint) to authenticated;
+
+create or replace function public.scar_guardar_v5(p_tabla text,p_datos jsonb,p_revision bigint default 0)
+returns jsonb language sql security invoker set search_path='' as $$
+  select public.scar_guardar(p_tabla,p_datos,p_revision);
+$$;
+revoke all on function public.scar_guardar_v5(text,jsonb,bigint) from public,anon;
+grant execute on function public.scar_guardar_v5(text,jsonb,bigint) to authenticated;
 
 -- Backfill para cuentas existentes; no duplica perfiles ni sobrescribe sus datos.
 insert into public.profiles(id,nombre) select id,coalesce(raw_user_meta_data->>'nombre','') from auth.users on conflict(id) do nothing;

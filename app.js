@@ -27,6 +27,7 @@ import { Cloud } from "./js/cloud.js";
 import { renderNote, stickers, photoGuide, renderCycleRing } from "./js/journal.js";
 import { compressImage, dataURL } from "./js/media.js";
 import { initExtras, renderExtras, daySheet, renderCompare } from "./js/extras.js";
+import { cycleObservations, productObservations, inventoryObservations } from "./js/analytics.js";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   cloud = new Cloud();
@@ -137,6 +138,35 @@ async function switchAccount() {
     await sync();
   }
   await renderCurrent();
+  updateAuthGate();
+}
+function updateAuthGate() {
+  const gate = $("#authGate"), locked = cloud.configured && !cloud.user && !window.SCAR_TEST_GUEST;
+  gate.hidden = !locked;
+  document.body.classList.toggle("auth-required", locked);
+}
+async function submitAuth(form, mode) {
+  const f = new FormData(form), message = form.querySelector('[role="status"]');
+  if (message) message.textContent = "";
+  if (mode === "signup") {
+    const logged = await cloud.signup(f.get("email"), f.get("password"), f.get("nombre"));
+    if (!logged) {
+      if (message) message.textContent = "Revisá tu correo para confirmar la cuenta. Después volvé e iniciá sesión.";
+      return;
+    }
+  } else await cloud.login(f.get("email"), f.get("password"));
+  await switchAccount();
+  toast("Tu diario ya está con vos.");
+}
+function downloadReminder() {
+  const value = $("#reminderTime")?.value || "21:00", [hour, minute] = value.split(":").map(Number), start = new Date();
+  start.setHours(hour, minute, 0, 0);
+  if (start <= new Date()) start.setDate(start.getDate() + 1);
+  const stamp = `${start.getFullYear()}${String(start.getMonth()+1).padStart(2,"0")}${String(start.getDate()).padStart(2,"0")}T${String(hour).padStart(2,"0")}${String(minute).padStart(2,"0")}00`;
+  const ics = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//SCAR//Recordatorio de skincare//ES","CALSCALE:GREGORIAN","BEGIN:VEVENT",`UID:scar-skincare-${Date.now()}@ilean01.github.io`,`DTSTART;TZID=America/Asuncion:${stamp}`,"RRULE:FREQ=DAILY","SUMMARY:Un ratito para mi skincare ♡","DESCRIPTION:Abrí SCAR y registrá tu cuidado a tu manera.","BEGIN:VALARM","TRIGGER:PT0M","ACTION:DISPLAY","DESCRIPTION:Es hora de tu pequeño ritual en SCAR ♡","END:VALARM","END:VEVENT","END:VCALENDAR",""] .join("\r\n");
+  const url = URL.createObjectURL(new Blob([ics], {type:"text/calendar;charset=utf-8"})), a = document.createElement("a");
+  a.href = url; a.download = "recordatorio-scar.ics"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("Recordatorio listo. Abrí el archivo para agregarlo a tu calendario.");
 }
 function friendly(e) {
   if (e.status === 400 && /credentials/i.test(e.message))
@@ -331,7 +361,7 @@ async function renderProducts() {
             (e) => !e.eliminado && e.producto_id === p.id,
           ),
           current = packs.find((e) => e.estado !== "terminado");
-        return `<article class="product"><div class="product-art">${icon("bottle")}</div><span class="eyebrow">${esc(p.marca || p.categoria || "MI COLECCIÓN")}</span><h3>${esc(p.nombre)}</h3><p>${esc(p.momento)}${p.favorito ? " · ♡ Favorito" : ""}${p.activo === false ? " · En pausa" : ""}</p>${current ? `<span class="pill">${esc(current.estado)}${expiry(current) ? " · " + esc(expiry(current)) : ""}</span>` : '<span class="pill">Sin envase registrado</span>'}<div class="product-actions"><button class="texto" data-edit-product="${esc(p.id)}">Editar producto</button><button class="texto" data-packs="${esc(p.id)}">Envases (${packs.length})</button></div></article>`;
+        return `<article class="product"><div class="product-art">${icon("bottle")}</div><span class="eyebrow">${esc(p.marca || p.categoria || "MI COLECCIÓN")}</span><h3>${esc(p.nombre)}</h3><p>${esc(p.momento)}${p.favorito ? " · ♡ Favorito" : ""}${p.activo === false ? " · En pausa" : ""}</p>${p.en_prueba ? `<span class="pill">En evaluación desde ${esc(p.fecha_inicio_prueba || "fecha pendiente")}</span>` : ""}${current ? `<span class="pill">${esc(current.estado)}${expiry(current) ? " · " + esc(expiry(current)) : ""}</span>` : '<span class="pill">Sin envase registrado</span>'}<div class="product-actions"><button class="texto" data-edit-product="${esc(p.id)}">Editar producto</button><button class="texto" data-packs="${esc(p.id)}">Envases (${packs.length})</button></div></article>`;
       })
       .join("") ||
     '<div class="empty">Tu tocador está listo para tus favoritos.<br>Agregá un producto para empezar.</div>';
@@ -414,6 +444,8 @@ async function productModal(id) {
         ],
         p.recompraria == null ? "" : String(p.recompraria),
       ) +
+      `<label class="check"><input type="checkbox" name="en_prueba" ${p.en_prueba ? "checked" : ""}>Quiero evaluar si este producto me sirve</label>` +
+      `<div class="form-row"><div>${field("Inicio de la prueba", "fecha_inicio_prueba", p.fecha_inicio_prueba || "", "date", `max="${dateISO()}"`)}</div><div>${field("Fin de la prueba · opcional", "fecha_fin_prueba", p.fecha_fin_prueba || "", "date", `max="${dateISO()}"`)}</div></div>` +
       field("Notas", "notas", p.notas || "") +
       submit() +
       (id
@@ -471,7 +503,7 @@ async function packList(id) {
     );
   modal(
     "Envases · " + ps.nombre,
-    `<p class="ayuda">Cada compra conserva sus propias fechas.</p>${packs.map((e) => `<div class="item item-top"><div><strong>${esc(e.estado)}</strong><p>Abierto: ${esc(e.fecha_apertura || "Sin registrar")}<br>Vencimiento: ${esc(expiry(e) || "Sin registrar")}</p></div><button class="texto" type="button" data-edit-pack="${esc(e.id)}">Editar</button></div>`).join("")}<button class="boton" type="button" data-new-pack="${esc(id)}">+ Registrar otro envase</button>`,
+    `<p class="ayuda">Cada compra conserva sus propias fechas.</p>${packs.map((e) => `<div class="item item-top"><div><strong>${esc(e.estado)}</strong><p>Abierto: ${esc(e.fecha_apertura || "Sin registrar")}<br>Terminado: ${esc(e.fecha_fin || "Sin registrar")}<br>Vencimiento: ${esc(expiry(e) || "Sin registrar")}</p></div><button class="texto" type="button" data-edit-pack="${esc(e.id)}">Editar</button></div>`).join("")}<button class="boton" type="button" data-new-pack="${esc(id)}">+ Registrar otro envase</button>`,
     "list",
   );
 }
@@ -485,6 +517,13 @@ async function packModal(productId, id) {
         "fecha_vencimiento",
         e.fecha_vencimiento || "",
         "date",
+      ) +
+      field(
+        "Cuándo se terminó · para calcular duración",
+        "fecha_fin",
+        e.fecha_fin || "",
+        "date",
+        `max="${dateISO()}"`,
       ) +
       field(
         "PAO · meses desde apertura",
@@ -610,10 +649,17 @@ async function saveForm(e) {
         recompraria: f.get("recompraria")
           ? f.get("recompraria") === "true"
           : null,
+        en_prueba: f.has("en_prueba"),
+        fecha_inicio_prueba: f.get("fecha_inicio_prueba") || null,
+        fecha_fin_prueba: f.get("fecha_fin_prueba") || null,
         notas: f.get("notas"),
         eliminado: false,
       };
       if (!r.nombre) throw Error("El producto necesita un nombre.");
+      if (r.en_prueba && !r.fecha_inicio_prueba)
+        throw Error("Elegí cuándo empezaste a probar el producto.");
+      if (r.fecha_fin_prueba && r.fecha_inicio_prueba && r.fecha_fin_prueba < r.fecha_inicio_prueba)
+        throw Error("El fin de la prueba no puede ser anterior al inicio.");
       if (f.has("removePhoto")) r.foto = null;
       const productPhoto = f.get("productPhoto");
       if (productPhoto?.size) r.foto = await dataURL(await compressImage(productPhoto, 400));
@@ -641,6 +687,7 @@ async function saveForm(e) {
         fecha_compra: f.get("fecha_compra") || null,
         fecha_apertura: f.get("fecha_apertura") || null,
         fecha_vencimiento: f.get("fecha_vencimiento") || null,
+        fecha_fin: f.get("fecha_fin") || null,
         meses_pao: f.get("meses_pao") ? Number(f.get("meses_pao")) : null,
         precio: f.get("precio") !== "" ? Number(f.get("precio")) : null,
         moneda: f.get("moneda"),
@@ -653,6 +700,8 @@ async function saveForm(e) {
         r.fecha_apertura < r.fecha_compra
       )
         throw Error("La apertura no puede ser anterior a la compra.");
+      if (r.fecha_fin && r.fecha_apertura && r.fecha_fin < r.fecha_apertura)
+        throw Error("El final no puede ser anterior a la apertura.");
     }
     if (kind === "ciclo") {
       t = "ciclos";
@@ -761,10 +810,10 @@ async function renderCalendar() {
     '</div><p class="ayuda">• Día con registro &nbsp; · &nbsp; Rosa: período registrado. Los días sin datos quedan vacíos.</p>';
 }
 async function renderEvolution() {
-  const regs = (await all(db, "registros"))
-      .filter((r) => !r.eliminado)
-      .sort((a, b) => a.fecha.localeCompare(b.fecha)),
-    ps = await all(db, "productos"),
+  const [rawRegs, ps, cycles, symptoms, packs] = await Promise.all([
+      all(db, "registros"), all(db, "productos"), all(db, "ciclos"), all(db, "sintomas"), all(db, "envases"),
+    ]),
+    regs = rawRegs.filter((r) => !r.eliminado).sort((a, b) => a.fecha.localeCompare(b.fecha)),
     withUse = regs.filter((r) =>
       MOMENTS.some((m) => r.productosUsados?.[m]?.length) || r.sesiones?.cuidados?.some(c => c.productos?.length),
     ),
@@ -800,6 +849,21 @@ async function renderEvolution() {
       })
       .join("") +
     "</article>";
+
+  const cycleStats = cycleObservations(regs, cycles, symptoms, zoneName);
+  html += `<article class="tarjeta"><span class="eyebrow">PIEL ↔ CICLO</span><h2>Lo que observaste en cada fase</h2><p class="ayuda">Son coincidencias descriptivas, no causas ni diagnósticos. Solo mostramos porcentajes cuando hay al menos 5 días comparables y siempre indicamos el tamaño de la muestra.</p>`;
+  if (!cycleStats.length) html += '<p>Todavía faltan registros de ciclo, síntomas y zonas del rostro para hacer este cruce.</p>';
+  else html += cycleStats.slice(0, 8).map(x => `<div class="insight"><strong>${esc(x.symptom)} en ${esc(x.zone)}</strong><p>${x.visible ? `${x.count} de ${x.n} días registrados en ${esc(x.phase)} (n = ${x.n}).` : `Datos insuficientes en ${esc(x.phase)}: ${x.count} observación(es), n = ${x.n}; se necesitan 5 días.`}</p></div>`).join("");
+  html += '</article>';
+
+  const productStats = productObservations(regs, ps, symptoms, dateISO());
+  html += `<article class="tarjeta"><span class="eyebrow">¿ME SIRVIÓ?</span><h2>Productos que estás evaluando</h2><p class="ayuda">Comparamos ventanas de igual duración antes y después del inicio. Durante ese tiempo también pudieron cambiar el clima, el ciclo, otros productos y tus hábitos; esto orienta, pero no demuestra que el producto causó el cambio.</p>`;
+  if (!productStats.length) html += '<p>Marcá “Quiero evaluar este producto” y su fecha de inicio desde Mi tocador.</p>';
+  else html += productStats.map(x => `<div class="insight"><strong>${esc(x.product.nombre)} · desde ${esc(x.product.fecha_inicio_prueba)}</strong>${x.enough ? `<p>Estado de piel: ${x.beforeMean.toFixed(1)} antes (n = ${x.before.length}) → ${x.afterMean.toFixed(1)} después (n = ${x.after.length}).</p>${x.symptom && (x.symptom.before || x.symptom.after) ? `<p>${esc(x.symptom.name)}: ${x.symptom.before} de ${x.beforeN} días antes → ${x.symptom.after} de ${x.afterN} días después.</p>` : ""}` : `<p>Datos insuficientes: antes n = ${x.before.length}; después n = ${x.after.length}. Se necesitan al menos 5 de cada lado.</p>`}<small>${x.useDays} día(s) con uso registrado desde el inicio.</small></div>`).join("");
+  html += '</article>';
+
+  const inventory = inventoryObservations(regs, ps, packs, dateISO()), money = n => new Intl.NumberFormat("es-PY").format(Math.round(n));
+  html += `<article class="tarjeta"><span class="eyebrow">MI INVERSIÓN</span><h2>Plata y duración de envases</h2><div class="stats mini">${Object.entries(inventory.spending).map(([currency,total]) => `<div class="stat"><strong>${currency === "PYG" ? "₲ " : currency + " "}${money(total)}</strong><span>comprado en ${new Date().getFullYear()}</span></div>`).join("") || '<p>Registrá precio y fecha de compra para ver el gasto anual.</p>'}</div>${inventory.details.map(x => `<div class="insight"><strong>${esc(x.product?.nombre || "Producto archivado")}</strong><p>${x.pack.fecha_fin ? `Duró ${x.days} días: ${esc(x.pack.fecha_apertura)} → ${esc(x.pack.fecha_fin)}.` : x.estimatedEnd ? `Según tus envases anteriores, podría durar aproximadamente hasta ${esc(x.estimatedEnd)}.` : `En uso desde ${esc(x.pack.fecha_apertura)}; falta un envase terminado para estimar cuánto durará.`}</p><small>${x.uses} uso(s) registrado(s)${x.costPerUse != null ? ` · costo aproximado por uso: ${x.pack.moneda === "PYG" ? "₲ " : esc(x.pack.moneda) + " "}${money(x.costPerUse)}` : ""}</small></div>`).join("")}</article>`;
   $("#evolucion").innerHTML = html;
 }
 async function renderSettings() {
@@ -815,14 +879,10 @@ async function renderSettings() {
     errors = pending.filter((r) => r.__error);
   let auth = cloud.user
     ? `<h2>Tu diario, con vos.</h2><p>${esc(cloud.user.email)}</p><div class="status-box">${pending.length ? `${pending.length} cambio(s) pendientes` : "Tus datos están sincronizados."}</div><div class="form-actions"><button class="boton auto" id="syncNow">Sincronizar ahora</button><button class="texto" id="logout">Cerrar sesión</button></div><button class="texto" id="importLocal">Importar datos de este dispositivo</button><p class="fineprint">La importación conserva los originales. Si una fecha ya existe en tu cuenta, la mantiene sin reemplazarla.</p>`
-    : `<h2>Tu diario, donde estés.</h2><p>Tu cuenta de SCAR es distinta de la cuenta con la que administrás Supabase. Completá tu correo y una contraseña de al menos 8 caracteres; después tocá <strong>Crear mi cuenta</strong>. Si ya tenés una, tocá <strong>Entrar a mi diario</strong>.</p><form id="authForm">${field("Tu nombre · al crear cuenta", "nombre", "", "text", 'autocomplete="given-name"') + field("Correo electrónico", "email", "", "email", 'required autocomplete="email"') + field("Contraseña", "password", "", "password", 'required minlength="8" autocomplete="current-password"')}<div class="form-actions"><button class="boton" type="submit" name="mode" value="login" ${!cloud.configured ? "disabled" : ""}>Entrar a mi diario</button><button class="boton secundario" type="submit" name="mode" value="signup" ${!cloud.configured ? "disabled" : ""}>Crear mi cuenta</button></div><button class="texto" type="button" id="recover">Olvidé mi contraseña</button><p id="authMessage" class="form-error" role="status"></p></form>${!cloud.configured ? '<p class="ayuda">Primero seguí los pasos de activación y guardá la conexión de Supabase de abajo.</p>' : ""}`;
+    : `<h2>Iniciá sesión para abrir tu diario.</h2>`;
   $("#ajustes").innerHTML =
-    `${setupGuide()}<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio. Abrí SCAR una vez con internet para preparar el acceso sin conexión.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar. Podés descargar una copia antes de decidir.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}<article class="tarjeta wide" id="connectionSettings"><details ${!cloud.configured ? "open" : ""}><summary>Conexión de Supabase</summary><p>Una sola vez: usá la URL del proyecto y su clave pública publishable o anon.</p><form id="configForm"><div class="form-row"><div>${field("Project URL", "url", cloud.config.supabaseUrl || "", "url", 'required placeholder="https://tu-proyecto.supabase.co"')}</div><div>${field("Publishable key", "key", cloud.config.supabasePublishableKey || "", "text", 'required placeholder="sb_publishable_…"')}</div></div><p class="fineprint">No uses service_role ni una clave secret. Si cambiás de proyecto, primero cerrá sesión.</p><button class="boton secundario auto" type="submit" ${cloud.user ? "disabled" : ""}>Guardar conexión</button><p id="configMessage" class="form-error" role="alert"></p></form></details></article></div>`;
-  $("#ajustes").insertAdjacentHTML("afterbegin", '<details class="tarjeta"><summary>Actualización V5 · fotos de productos en la nube</summary><p>Si ya instalaste V4, ejecutá una vez <a href="./supabase/migrar_v4_a_v5.sql" target="_blank" rel="noopener">migrar_v4_a_v5.sql</a> en Supabase → SQL Editor. No borra tus datos. Si la base está vacía, instalá V4 primero. Sin esa migración, las fotos de productos quedan pendientes de sincronizar.</p></details>');
-}
-function setupGuide() {
-  if (cloud.user) return "";
-  return `<article class="tarjeta setup-guide"><span class="eyebrow">BIENVENIDA A TU PEQUEÑO ESPACIO</span><h2>Tu diario, paso a paso</h2><p>${cloud.configured ? "Conexión guardada en este navegador. Falta entrar y comprobar el guardado." : "Podés usar tu diario aquí. Para llevarlo a otros dispositivos, activá tu nube."}</p><ol class="setup-steps"><li><strong>Prepará la base una sola vez</strong><p>En Supabase → SQL Editor, ejecutá <a href="./supabase/instalar_scar.sql" target="_blank" rel="noopener">instalar_scar.sql</a> si la base está vacía, o <a href="./supabase/migrar_v3_a_v4.sql" target="_blank" rel="noopener">migrar_v3_a_v4.sql</a> si tenés exactamente V3. Si ya instalaste V4, este paso está hecho. No ejecutes ambos.</p></li><li><strong>Activá el acceso por correo</strong><p>En Authentication, habilitá Email y las nuevas altas. En URL Configuration, colocá <code>https://ilean01.github.io/SCAR/</code> como Site URL y Redirect URL.</p></li><li><strong>${cloud.configured ? "Conexión guardada" : "Conectá SCAR"}</strong><p>Copiá la Project URL y la clave pública publishable o anon de tu proyecto. Pegalas en <a href="#connectionSettings">Conexión de Supabase</a>, abajo. Guardar estos valores todavía no verifica la base.</p></li><li><strong>Creá tu cuenta y confirmá tu correo</strong><p>Usá el formulario de abajo. Si se solicita confirmación, abrí el mensaje (revisá también spam), confirmá y volvé a entrar. Usá la misma cuenta en todos tus dispositivos.</p></li><li><strong>Comprobá que tus recuerdos viajan con vos</strong><p>Guardá una nota, tocá Sincronizar ahora y esperá “Todo guardado en la nube”. Abrí otro dispositivo con la misma conexión y cuenta y comprobá que aparezca. Si ya tenías datos aquí, tocá Importar datos de este dispositivo después de entrar.</p></li></ol><details><summary>¿No llega el correo?</summary><p>Revisá spam, la dirección y la configuración de Email en Supabase. El servicio de correo de prueba solo envía a direcciones del equipo del proyecto. Para otras cuentas, configurá un proveedor SMTP en Authentication.</p></details></article>`;
+    `<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Recordatorio diario</h2><p>Elegí una hora y descargá un recordatorio para agregarlo al calendario de tu teléfono.</p><label class="campo-label" for="reminderTime">Hora</label><input id="reminderTime" type="time" value="21:00"><button class="boton secundario" id="reminderIcs">Agregar a mi calendario</button><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}</div>`;
+  $("#ajustes").insertAdjacentHTML("afterbegin", '<details class="tarjeta"><summary>Actualización V6 · análisis de envases</summary><p>Después de V5, ejecutá una vez <a href="./supabase/migrar_v5_a_v6.sql" target="_blank" rel="noopener">migrar_v5_a_v6.sql</a> en Supabase → SQL Editor. Conserva tus datos y agrega la fecha real de finalización de cada envase.</p></details>');
 }
 function clean(r) {
   return Object.fromEntries(
@@ -966,7 +1026,7 @@ function events() {
           r.sesiones[m] ||= { nombre: "A mi manera", plan: [] };
           r.sesiones[m].estado =
             r.sesiones[m].estado === "terminada" ? "pendiente" : "terminada";
-          if (r.sesiones[m].estado === "terminada" && fecha === dateISO() && !r.sesiones[m].hora)
+          if (r.sesiones[m].estado === "terminada" && fecha === dateISO())
             r.sesiones[m].hora = new Date().toTimeString().slice(0, 5);
         }),
       );
@@ -1109,6 +1169,9 @@ function events() {
               : "El navegador administra la conservación de tus datos.",
           ),
         );
+        break;
+      case "reminderIcs":
+        downloadReminder();
         break;
       case "recover":
         action(async () => {
@@ -1286,6 +1349,25 @@ function events() {
       }
     });
   });
+  $("#authGateForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = e.currentTarget, mode = e.submitter?.value || "login", buttons = [...form.querySelectorAll("button")];
+    action(async () => {
+      buttons.forEach(b => b.disabled = true);
+      try { await submitAuth(form, mode); }
+      catch (err) { form.querySelector('[role="status"]').textContent = friendly(err); }
+      finally { buttons.forEach(b => b.disabled = false); }
+    });
+  });
+  $("#authGate").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-recover]")) return;
+    const form = $("#authGateForm"), email = form.elements.email.value;
+    action(async () => {
+      if (!email) throw Error("Escribí tu correo primero.");
+      await cloud.recover(email);
+      form.querySelector('[role="status"]').textContent = "Revisá tu correo para cambiar la contraseña.";
+    });
+  });
   window.addEventListener("online", () => action(sync));
   window.addEventListener("offline", () =>
     status("Sin conexión · guardado aquí"),
@@ -1309,6 +1391,7 @@ function events() {
 async function init() {
   icons();
   stickers();
+  updateAuthGate();
   $("#photoGuide").innerHTML = photoGuide();
   renderNote();
   guest = await openDB();

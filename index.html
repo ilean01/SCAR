@@ -28,6 +28,29 @@
   </head>
   <body>
     <a class="skip" href="#app">Ir al contenido</a>
+    <section id="authGate" class="auth-gate" hidden aria-labelledby="authGateTitle">
+      <div class="auth-gate-card">
+        <span class="sticker auth-sticker" data-sticker="bow" aria-hidden="true"></span>
+        <span class="eyebrow">TU DIARIO, SOLO TUYO</span>
+        <h1 id="authGateTitle">Bienvenida a <em>scar.</em></h1>
+        <p>Entrá para ver y sincronizar tu diario en este dispositivo.</p>
+        <form id="authGateForm">
+          <label class="campo-label" for="gateEmail">Correo electrónico</label>
+          <input id="gateEmail" name="email" type="email" required autocomplete="email">
+          <label class="campo-label" for="gatePassword">Contraseña</label>
+          <input id="gatePassword" name="password" type="password" required minlength="8" autocomplete="current-password">
+          <button class="boton" type="submit" name="mode" value="login">Entrar a mi diario</button>
+          <details class="signup-details">
+            <summary>¿Es tu primera vez? Crear cuenta</summary>
+            <label class="campo-label" for="gateName">Tu nombre</label>
+            <input id="gateName" name="nombre" autocomplete="given-name">
+            <button class="boton secundario" type="submit" name="mode" value="signup">Crear mi cuenta</button>
+          </details>
+          <button class="texto" type="button" data-recover>Olvidé mi contraseña</button>
+          <p class="form-error" role="status"></p>
+        </form>
+      </div>
+    </section>
     <header class="cabecera">
       <a class="brand" href="./" aria-label="SCAR, inicio"
         ><span class="brand-flower" aria-hidden="true">✳</span

@@ -40,6 +40,7 @@ const today = new Date().toLocaleDateString("en-CA");
     }),
     page = await context.newPage(),
     errors = [];
+  await page.addInitScript(() => { window.SCAR_TEST_GUEST = true; });
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
     if (m.type() === "error") console.log("BROWSER", m.text());
@@ -82,6 +83,14 @@ const today = new Date().toLocaleDateString("en-CA");
   await page.locator('[data-finish="mañana"]').click();
   await page.waitForFunction(() =>
     document.querySelector("#estadoManana").textContent.includes("terminado"),
+  );
+  assert.match(
+    await page.locator('[data-session-time="mañana"]').inputValue(),
+    /^\d{2}:\d{2}$/,
+  );
+  assert.equal(
+    await page.locator("#completedRitualList .ritual.morning").count(),
+    1,
   );
   await page.locator("#notasHoy").fill("Mi nota se conserva ♡");
   await page.locator('[data-mood="4"]').click();
