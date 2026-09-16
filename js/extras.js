@@ -55,6 +55,8 @@ export function initExtras(api) {
   document.addEventListener("visibilitychange", refreshPeriod);
   window.addEventListener("focus", refreshPeriod);
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
+  $(".barra").append($(".barra [data-nav=ajustes]"));
+  initCareTimer();
   $("#app").insertAdjacentHTML("beforeend", '<section id="vista-comparar" class="vista"><div class="titulo-vista"><h1>Tu piel, <em>en perspectiva.</em></h1><p>Compará el mismo ángulo con luz y distancia parecidas. No es un diagnóstico.</p></div><div id="comparePanel"></div></section>');
   $("#quickPhoto").onclick = () => $("#fotoInput").click();
   $("#freeCare").onclick = () => A.action(() => careForm());
@@ -76,6 +78,62 @@ export function initExtras(api) {
       }
     } catch(err) { $("#extraError").textContent = err.message; } finally { if(b) b.disabled = false; }
   }); });
+}
+function initCareTimer() {
+  $("#quickCard").insertAdjacentHTML("afterend", '<details class="tarjeta" id="careTimer"><summary>⏱ Tiempo entre productos</summary><p>Elegí cuánto querés esperar según las indicaciones de tu producto.</p><label class="campo-label" for="timerMinutes">Minutos de espera</label><input id="timerMinutes" type="number" min="1" max="180" step="1" value="2"><p><output id="timerDisplay" aria-label="Tiempo restante" style="font-size:2rem;font-variant-numeric:tabular-nums">02:00</output></p><div class="form-actions"><button class="boton auto" id="timerStart" type="button">Iniciar</button><button class="boton secundario auto" id="timerPause" type="button" disabled>Pausar</button><button class="texto" id="timerReset" type="button">Reiniciar</button></div><p id="timerStatus" role="status"></p><p class="fineprint">Al volver a la app se actualiza el tiempo. Si cerrás la página, el temporizador se cancela; no envía avisos con la app cerrada.</p></details>');
+  let remaining = 120000, deadline = null, interval = null;
+  const display = () => {
+    const seconds = Math.ceil(remaining / 1000);
+    $("#timerDisplay").textContent = `${String(Math.floor(seconds / 60)).padStart(2,"0")}:${String(seconds % 60).padStart(2,"0")}`;
+  };
+  const tick = () => {
+    if (deadline === null) return;
+    remaining = Math.max(0, deadline - Date.now());
+    display();
+    if (!remaining) {
+      clearInterval(interval); deadline = null;
+      $("#timerPause").disabled = true;
+      $("#timerStart").disabled = false;
+      $("#timerStart").textContent = "Volver a iniciar";
+      $("#timerMinutes").disabled = false;
+      $("#timerStatus").textContent = "♡ Terminó el tiempo de espera.";
+      A.toast("Terminó tu temporizador entre productos ♡");
+    }
+  };
+  const reset = () => {
+    clearInterval(interval); deadline = null;
+    const input = $("#timerMinutes");
+    if (!input.value || !input.checkValidity()) input.value = "2";
+    remaining = Number(input.value) * 60000;
+    input.disabled = false;
+    $("#timerStart").disabled = false;
+    $("#timerStart").textContent = "Iniciar";
+    $("#timerPause").disabled = true;
+    $("#timerStatus").textContent = "";
+    display();
+  };
+  $("#timerMinutes").onchange = reset;
+  $("#timerReset").onclick = reset;
+  $("#timerStart").onclick = () => {
+    if (!$("#timerMinutes").reportValidity() || !$("#timerMinutes").value) return;
+    if (!remaining) remaining = Number($("#timerMinutes").value) * 60000;
+    deadline = Date.now() + remaining;
+    $("#timerMinutes").disabled = true;
+    $("#timerStart").disabled = true;
+    $("#timerPause").disabled = false;
+    $("#timerStatus").textContent = "Tiempo de espera en curso…";
+    interval = setInterval(tick, 250); tick();
+  };
+  $("#timerPause").onclick = () => {
+    tick();
+    if (deadline === null) return;
+    clearInterval(interval); deadline = null;
+    $("#timerStart").disabled = false;
+    $("#timerStart").textContent = "Continuar";
+    $("#timerPause").disabled = true;
+    $("#timerStatus").textContent = "En pausa.";
+  };
+  document.addEventListener("visibilitychange", tick);
 }
 export async function renderExtras(r) {
   if(!A) return;
