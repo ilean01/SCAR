@@ -1318,6 +1318,10 @@ async function init() {
     date: () => fecha, owner: () => db.name, cloud, action,
     mutate: (fn, render = true, date = fecha) => mutateDay(fn, render, date),
     toast, zoneName,
+    clockRefresh: async (previous, today) => {
+      if (fecha === previous && previous !== today) fecha = today;
+      if (view === "hoy") await renderHoy();
+    },
     editDate: date => action(async () => { fecha = date; await navigate("hoy"); $("#moreDetails").open = true; }),
   });
   await normalizeLegacy(guest);

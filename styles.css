@@ -16,6 +16,10 @@
 }
 /* V5: registro breve primero, detalle voluntario. */
 #quickCard { margin-top: 20px; }
+#currentCare { margin-top: 18px; }
+#currentCare .ritual { margin-bottom: 0; }
+.afternoon { background: var(--sage); }
+.time-window { margin: 0 0 10px; }
 #quickCard h2 { font-size: 26px; }
 #quickMood .mood-row { margin: 16px 0; }
 #vista-hoy .hero { min-height: 150px; }

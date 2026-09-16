@@ -1,5 +1,7 @@
 import { dateISO, escapeHTML as esc, cycleInfo } from "./core.js";
+import { daypart } from "./daypart.js";
 let A, stream, urls = [], cameraDate, cameraOwner, dialogOwner, weatherBusy = false, weatherAttempt;
+let shownPeriod, lastToday = dateISO(), morningCard, nightCard;
 const $ = s => document.querySelector(s);
 const time = () => new Date().toTimeString().slice(0, 5);
 const angles = ["frente", "perfil izquierdo", "perfil derecho"];
@@ -35,6 +37,21 @@ export function initExtras(api) {
   day.append(details);
   details.insertAdjacentHTML("beforebegin", '<article id="quickCard" class="tarjeta"><span class="eyebrow">LO ESENCIAL, A TU MANERA</span><h2>Un toque para cuidarte</h2><div id="quickMood"></div><div id="quickRoutine"></div><div class="form-actions"><button class="boton auto" id="freeCare">+ Otro cuidado</button><button class="boton secundario auto" id="quickPhoto">+ Foto</button><button class="texto" id="ghostCamera">Cámara con guía</button></div><div id="careList"></div><div id="quickPhotos"></div><div id="weatherCard"></div></article>');
   $("#quickMood").append($("#mood"));
+  morningCard = document.querySelector(".ritual.morning");
+  nightCard = document.querySelector(".ritual.evening");
+  $("#quickCard").insertAdjacentHTML("beforebegin", '<div id="currentCare" aria-label="Cuidado sugerido según la hora"></div>');
+  const refreshPeriod = () => {
+    if(document.hidden || document.querySelector("dialog[open]") || document.activeElement?.matches("input,select,textarea")) return;
+    const now = dateISO(), key = now + daypart().key;
+    if(key === shownPeriod) return;
+    A.action(async () => {
+      await A.clockRefresh(lastToday, now);
+      lastToday = now;
+    });
+  };
+  setInterval(refreshPeriod, 30000);
+  document.addEventListener("visibilitychange", refreshPeriod);
+  window.addEventListener("focus", refreshPeriod);
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
   $("#app").insertAdjacentHTML("beforeend", '<section id="vista-comparar" class="vista"><div class="titulo-vista"><h1>Tu piel, <em>en perspectiva.</em></h1><p>Compará el mismo ángulo con luz y distancia parecidas. No es un diagnóstico.</p></div><div id="comparePanel"></div></section>');
   $("#quickPhoto").onclick = () => $("#fotoInput").click();
@@ -60,7 +77,18 @@ export function initExtras(api) {
 }
 export async function renderExtras(r) {
   if(!A) return;
-  const routines = (await A.all("rutinas")).filter(x => !x.eliminado && x.activa !== false);
+  const period = daypart(), today = r.fecha === dateISO();
+  shownPeriod = dateISO() + period.key;
+  const holder = $("#currentCare"), grid = document.querySelector(".ritual-grid");
+  grid.append(morningCard, nightCard);
+  holder.replaceChildren();
+  if(today && period.key !== "extra") holder.append(period.key === "mañana" ? morningCard : nightCard);
+  else if(today) {
+    holder.innerHTML = '<article class="tarjeta afternoon"><span class="eyebrow">15:00–20:00 · A TU MANERA</span><h2>Un cuidado extra</h2><p>Una mascarilla, un retoque o lo que elijas. Este momento es opcional.</p><button class="boton" id="afternoonCare">+ Agregar cuidado de tarde</button></article>';
+    $("#afternoonCare").onclick = () => A.action(() => careForm(null,null,"Cuidado de tarde"));
+  }
+  if(today) holder.insertAdjacentHTML("afterbegin", `<p class="ayuda time-window">${esc(period.range)} · hora de tu dispositivo. Podés registrar otros cuidados en “Agregar más”.</p>`);
+  const routines = (await A.all("rutinas")).filter(x => !x.eliminado && x.activa !== false && (!today || x.momento === "cualquiera" || x.momento === period.key));
   const regs = await A.all("registros");
   const recent = regs.filter(x => !x.eliminado).sort((a,b) => b.fecha.localeCompare(a.fecha)).flatMap(x => [...(x.sesiones?.cuidados || [])].reverse()).find(x => x.rutina_id);
   const selected = $("#quickRoutine select")?.value || recent?.rutina_id || routines[0]?.id;
@@ -91,9 +119,9 @@ export async function renderExtras(r) {
   $("#weatherDisable").onclick = () => {localStorage.removeItem("scar-weather");A.toast("Clima automático desactivado.");};
   if(localStorage.getItem("scar-weather") === "yes" && !weather && A.date()===dateISO() && weatherAttempt !== A.owner()+A.date()) weatherFetch();
 }
-async function careForm(id, routineId) {
+async function careForm(id, routineId, defaultName = "") {
   const date = A.date(), r = await A.record(date), ps=(await A.all("productos")).filter(p=>!p.eliminado);
-  let c = r.sesiones?.cuidados?.find(x=>x.id===id) || {};
+  let c = r.sesiones?.cuidados?.find(x=>x.id===id) || {nombre:defaultName};
   if(routineId) { const routine=(await A.all("rutinas")).find(x=>x.id===routineId);c={nombre:routine.nombre,productos:ps.filter(p=>routine.productos.includes(p.id))}; }
   dialog(id ? "Editar cuidado" : "Un cuidado a tu manera", `<form id="careForm" data-date="${date}" data-edit="${esc(id || "")}"><label class="campo-label">Nombre<input name="name" required maxlength="180" placeholder="Mañana, tarde, mascarilla…" value="${esc(c.nombre || "")}"></label><label class="campo-label">Hora<input name="time" type="time" value="${esc(c.hora || (date===dateISO()?time():""))}"></label><p>Productos usados · opcional</p>${ps.map(p=>`<label class="check"><input name="product" type="checkbox" value="${p.id}" data-name="${esc(p.nombre)}" ${c.productos?.some(x=>x.id===p.id)?"checked":""}>${esc(p.nombre)}</label>`).join("")}<label class="campo-label">Notas<textarea name="notes">${esc(c.notas || "")}</textarea></label><button class="boton" type="submit">Guardar cuidado</button></form>`);
 }

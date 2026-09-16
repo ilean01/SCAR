@@ -20,6 +20,8 @@ Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunc
 
 ## V5 · registro rápido, cuidados libres y fotos
 
+V5.1: el bloque superior usa la hora local del dispositivo: mañana de 06:00 a 14:59, cuidado extra de 15:00 a 19:59 y noche de 20:00 a 05:59. Cambia al volver a la app o en la siguiente comprobación de 30 segundos mientras esté visible; espera si hay un formulario abierto o un campo en edición. Las otras rutinas siguen en Agregar más. Las fechas históricas muestran ambas opciones sin aplicarles el horario actual. Al pasar medianoche, el diario abierto en el día actual avanza a la nueva fecha; las anotaciones nocturnas pertenecen a su fecha calendario. No requiere una migración SQL adicional.
+
 La pantalla inicial prioriza carita, rutina habitual y foto. “Agregar más” conserva el registro detallado. Elegir una plantilla no marca productos; tocar “Hice esta rutina” sí confirma explícitamente todos sus pasos y registra la hora local. Cada cuidado adicional tiene nombre libre (tarde, mascarilla, etc.), productos, notas y hora editable. No hay obligación de cumplir mañana/noche. Los cuidados se conservan en `registros.sesiones.cuidados`, con copias de nombres/productos; los registros anteriores siguen disponibles.
 
 - Calendario: abre una ficha con datos, zonas, síntomas, intensidades y fotos, con botón para editar.
