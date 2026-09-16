@@ -228,6 +228,10 @@ export class Cloud {
             if (old.__conflict) old.__remote = row;
             return old;
           }
+          if (t === "registros") row.fotos = (row.fotos || []).map(f => {
+            const cached = old?.fotos?.find(x => x.id === f.id && x.storage_path === f.storage_path);
+            return cached?.blob ? { ...f, blob: cached.blob } : f;
+          });
           return row;
         });
       }
@@ -277,7 +281,7 @@ export class Cloud {
                 });
               }
             }
-            const result = await this.request("/rest/v1/rpc/scar_guardar", {
+            const result = await this.request(t === "productos" && Object.hasOwn(payload, "foto") ? "/rest/v1/rpc/scar_guardar_v5" : "/rest/v1/rpc/scar_guardar", {
               method: "POST",
               body: {
                 p_tabla: t,

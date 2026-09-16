@@ -1,5 +1,5 @@
 // Solo recursos de la app: jamás respuestas Auth, API ni fotos personales.
-const CACHE = "scar-app-v4.1.0";
+const CACHE = "scar-app-v5.0.0";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,8 @@ const ASSETS = [
   "./config.js",
   "./js/core.js",
   "./js/journal.js",
+  "./js/extras.js",
+  "./js/media.js",
   "./js/db.js",
   "./js/cloud.js",
   "./manifest.json",

@@ -151,11 +151,15 @@ export async function importLegacy(source, target) {
           );
           r.rutinas[m] = mapping.get(r.rutinas?.[m]) || null;
           if (r.sesiones?.[m])
-            r.sesiones[m].plan = r.sesiones[m].plan.map((p) => ({
+            r.sesiones[m].plan = (r.sesiones[m].plan || []).map((p) => ({
               ...p,
               id: mapping.get(p.id) || p.id,
             }));
         }
+        if (r.sesiones?.cuidados) r.sesiones.cuidados = r.sesiones.cuidados.map(c => ({
+          ...c, rutina_id: mapping.get(c.rutina_id) || null,
+          productos: (c.productos || []).map(p => ({...p, id: mapping.get(p.id) || p.id})),
+        }));
         r.sintomas = (r.sintomas || []).map((x) => mapping.get(x) || x);
         r.intensidades = Object.fromEntries(
           Object.entries(r.intensidades || {}).map(([k, v]) => [

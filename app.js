@@ -25,6 +25,8 @@ import {
 } from "./js/db.js";
 import { Cloud } from "./js/cloud.js";
 import { renderNote, stickers, photoGuide, renderCycleRing } from "./js/journal.js";
+import { compressImage, dataURL } from "./js/media.js";
+import { initExtras, renderExtras, daySheet, renderCompare } from "./js/extras.js";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   cloud = new Cloud();
@@ -144,7 +146,7 @@ function friendly(e) {
     e.code === "PGRST202" ||
     /scar_guardar|relation .*does not exist/i.test(e.message)
   )
-    return "Falta ejecutar el SQL V4 de SCAR en Supabase.";
+    return /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
   return e.message;
 }
 async function renderHoy() {
@@ -237,7 +239,7 @@ async function renderHoy() {
   $("#zonasHoy").innerHTML = (r.zonas || [])
     .map(
       (z, i) =>
-        `<div class="item item-top"><span>${esc(zoneName(z.zona_id))}${z.notas ? " · " + esc(z.notas) : ""}</span><button class="texto" data-delete-zone="${i}" aria-label="Quitar anotación de ${esc(zoneName(z.zona_id))}">Quitar</button></div>`,
+        `<div class="item item-top"><span><strong>${esc(zoneName(z.zona_id))}</strong><br>${esc(ss.find(s => s.id === z.sintoma_id)?.nombre || "Sin síntoma asociado")} · ${z.intensidad == null ? "Sin intensidad" : ["Ausente", "Leve", "Moderada", "Fuerte"][z.intensidad]}${z.notas ? "<br>" + esc(z.notas) : ""}</span><button class="texto" data-delete-zone="${i}" aria-label="Quitar anotación de ${esc(zoneName(z.zona_id))}">Quitar</button></div>`,
     )
     .join("");
   for (const el of $$("[data-daily]")) {
@@ -269,6 +271,7 @@ async function renderHoy() {
     ? "Terminó mi período"
     : "Empezó mi período";
   await renderPhotos(r, token);
+  await renderExtras(r);
 }
 const zoneNames = [
   "Frente",
@@ -308,36 +311,7 @@ async function renderPhotos(r, token) {
     }
   }
 }
-async function compress(file) {
-  if (!file.type.startsWith("image/")) throw Error("Elegí una imagen.");
-  if (file.size > 30 * 1024 * 1024)
-    throw Error("La imagen supera 30 MB. Elegí una más pequeña.");
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const scale = Math.min(1, 1200 / Math.max(img.width, img.height)),
-      canvas = document.createElement("canvas");
-    canvas.width = Math.round(img.width * scale);
-    canvas.height = Math.round(img.height * scale);
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return await new Promise((resolve, reject) =>
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(Error("No se pudo procesar la foto."))),
-        "image/jpeg",
-        0.82,
-      ),
-    );
-  } catch {
-    throw Error("No se pudo abrir esta imagen. Probá con una foto JPG o PNG.");
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
+const compress = compressImage;
 async function renderProducts() {
   const [ps, rs, envases] = await Promise.all([
     all(db, "productos"),
@@ -370,6 +344,10 @@ async function renderProducts() {
       )
       .join("") ||
     '<div class="empty">Una rutina rápida, una noche de mimo…<br>Creá las que se adapten a vos.</div>';
+  for (const p of ps) if (/^data:image\/jpeg;base64,/.test(p.foto || "")) {
+    const art = document.querySelector(`[data-edit-product="${p.id}"]`)?.closest(".product")?.querySelector(".product-art");
+    if (art) art.innerHTML = `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" class="product-photo">`;
+  }
 }
 function modal(title, content, kind, id = "") {
   const form = $("#formModal");
@@ -404,6 +382,7 @@ async function productModal(id) {
       'required maxlength="180"',
     ) +
       field("Marca", "marca", p.marca || "") +
+      '<label class="campo-label" for="productPhoto">Foto del producto · opcional</label><input id="productPhoto" name="productPhoto" type="file" accept="image/*"><label><input type="checkbox" name="removePhoto"> Quitar foto actual</label>' +
       field("Categoría", "categoria", p.categoria || "") +
       select(
         "Momento",
@@ -635,6 +614,9 @@ async function saveForm(e) {
         eliminado: false,
       };
       if (!r.nombre) throw Error("El producto necesita un nombre.");
+      if (f.has("removePhoto")) r.foto = null;
+      const productPhoto = f.get("productPhoto");
+      if (productPhoto?.size) r.foto = await dataURL(await compressImage(productPhoto, 400));
     }
     if (kind === "rutina") {
       t = "rutinas";
@@ -784,13 +766,14 @@ async function renderEvolution() {
       .sort((a, b) => a.fecha.localeCompare(b.fecha)),
     ps = await all(db, "productos"),
     withUse = regs.filter((r) =>
-      MOMENTS.some((m) => r.productosUsados?.[m]?.length),
+      MOMENTS.some((m) => r.productosUsados?.[m]?.length) || r.sesiones?.cuidados?.some(c => c.productos?.length),
     ),
     skin = regs.filter((r) => r.estado_piel),
-    mean = skin.length
+    mean = skin.length >= 5
       ? (skin.reduce((s, r) => s + r.estado_piel, 0) / skin.length).toFixed(1)
       : "—";
   let html = `<div class="stats"><div class="stat"><strong>${regs.length}</strong><span>días con recuerdos</span></div><div class="stat"><strong>${mean}</strong><span>estado medio de piel / 5</span></div><div class="stat"><strong>${regs.reduce((n, r) => n + (r.fotos?.length || 0), 0)}</strong><span>fotos en tu diario</span></div></div><article class="tarjeta" style="margin-top:22px"><h2>Así se sintió tu piel</h2>`;
+  html += `<p class="ayuda">Estado de piel: n = ${skin.length} días. Promedio oculto con menos de 5 registros. No se infieren causas ni relaciones con fases del ciclo a partir de estos datos.</p>`;
   if (skin.length) {
     const last = skin.slice(-30),
       span = Math.max(1, dayDiff(last.at(-1).fecha, last[0].fecha)),
@@ -807,13 +790,13 @@ async function renderEvolution() {
     ps
       .map((p) => {
         const count = withUse.filter((r) =>
-          MOMENTS.some((m) => r.productosUsados?.[m]?.includes(p.id)),
+          MOMENTS.some((m) => r.productosUsados?.[m]?.includes(p.id)) || r.sesiones?.cuidados?.some(c => c.productos?.some(x => x.id === p.id)),
         ).length;
         if (!count && p.eliminado) return "";
         const pct = withUse.length
           ? Math.round((count / withUse.length) * 100)
           : 0;
-        return `<div class="item"><div class="item-top"><span>${esc(p.nombre)}</span><span>${pct}% · ${count} días</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></div>`;
+        return `<div class="item"><div class="item-top"><span>${esc(p.nombre)}</span><span>${withUse.length >= 5 ? pct + "%" : "Datos insuficientes"} · ${count}/${withUse.length} días (n = ${withUse.length})</span></div>${withUse.length >= 5 ? `<div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>` : ""}</div>`;
       })
       .join("") +
     "</article>";
@@ -835,6 +818,7 @@ async function renderSettings() {
     : `<h2>Tu diario, donde estés.</h2><p>Tu cuenta de SCAR es distinta de la cuenta con la que administrás Supabase. Completá tu correo y una contraseña de al menos 8 caracteres; después tocá <strong>Crear mi cuenta</strong>. Si ya tenés una, tocá <strong>Entrar a mi diario</strong>.</p><form id="authForm">${field("Tu nombre · al crear cuenta", "nombre", "", "text", 'autocomplete="given-name"') + field("Correo electrónico", "email", "", "email", 'required autocomplete="email"') + field("Contraseña", "password", "", "password", 'required minlength="8" autocomplete="current-password"')}<div class="form-actions"><button class="boton" type="submit" name="mode" value="login" ${!cloud.configured ? "disabled" : ""}>Entrar a mi diario</button><button class="boton secundario" type="submit" name="mode" value="signup" ${!cloud.configured ? "disabled" : ""}>Crear mi cuenta</button></div><button class="texto" type="button" id="recover">Olvidé mi contraseña</button><p id="authMessage" class="form-error" role="status"></p></form>${!cloud.configured ? '<p class="ayuda">Primero seguí los pasos de activación y guardá la conexión de Supabase de abajo.</p>' : ""}`;
   $("#ajustes").innerHTML =
     `${setupGuide()}<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio. Abrí SCAR una vez con internet para preparar el acceso sin conexión.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar. Podés descargar una copia antes de decidir.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}<article class="tarjeta wide" id="connectionSettings"><details ${!cloud.configured ? "open" : ""}><summary>Conexión de Supabase</summary><p>Una sola vez: usá la URL del proyecto y su clave pública publishable o anon.</p><form id="configForm"><div class="form-row"><div>${field("Project URL", "url", cloud.config.supabaseUrl || "", "url", 'required placeholder="https://tu-proyecto.supabase.co"')}</div><div>${field("Publishable key", "key", cloud.config.supabasePublishableKey || "", "text", 'required placeholder="sb_publishable_…"')}</div></div><p class="fineprint">No uses service_role ni una clave secret. Si cambiás de proyecto, primero cerrá sesión.</p><button class="boton secundario auto" type="submit" ${cloud.user ? "disabled" : ""}>Guardar conexión</button><p id="configMessage" class="form-error" role="alert"></p></form></details></article></div>`;
+  $("#ajustes").insertAdjacentHTML("afterbegin", '<details class="tarjeta"><summary>Actualización V5 · fotos de productos en la nube</summary><p>Si ya instalaste V4, ejecutá una vez <a href="./supabase/migrar_v4_a_v5.sql" target="_blank" rel="noopener">migrar_v4_a_v5.sql</a> en Supabase → SQL Editor. No borra tus datos. Si la base está vacía, instalá V4 primero. Sin esa migración, las fotos de productos quedan pendientes de sincronizar.</p></details>');
 }
 function setupGuide() {
   if (cloud.user) return "";
@@ -892,6 +876,7 @@ async function renderCurrent() {
   if (view === "calendario") await renderCalendar();
   if (view === "evolucion") await renderEvolution();
   if (view === "ajustes") await renderSettings();
+  if (view === "comparar") await renderCompare();
   icons();
 }
 async function navigate(v) {
@@ -981,6 +966,8 @@ function events() {
           r.sesiones[m] ||= { nombre: "A mi manera", plan: [] };
           r.sesiones[m].estado =
             r.sesiones[m].estado === "terminada" ? "pendiente" : "terminada";
+          if (r.sesiones[m].estado === "terminada" && fecha === dateISO() && !r.sesiones[m].hora)
+            r.sesiones[m].hora = new Date().toTimeString().slice(0, 5);
         }),
       );
     if (b.dataset.rest)
@@ -1020,7 +1007,7 @@ function events() {
     if (b.dataset.date)
       return action(async () => {
         fecha = b.dataset.date;
-        await navigate("hoy");
+        await daySheet(fecha);
       });
     if (b.dataset.resolve)
       return action(async () => {
@@ -1231,6 +1218,7 @@ function events() {
         action(async () => {
           const r = await readRecord(db, fecha);
           if (r.fotos.length >= 3) throw Error("Máximo 3 fotos por día.");
+          toast("Preparando foto…");
           photoDraft = { id: crypto.randomUUID(), blob: await compress(file) };
           modal(
             "Una foto de tu piel",
@@ -1325,6 +1313,13 @@ async function init() {
   renderNote();
   guest = await openDB();
   db = guest;
+  initExtras({
+    all: t => all(db, t), record: d => readRecord(db, d),
+    date: () => fecha, owner: () => db.name, cloud, action,
+    mutate: (fn, render = true, date = fecha) => mutateDay(fn, render, date),
+    toast, zoneName,
+    editDate: date => action(async () => { fecha = date; await navigate("hoy"); $("#moreDetails").open = true; }),
+  });
   await normalizeLegacy(guest);
   events();
   const callback = cloud.configured ? await cloud.consumeCallback() : null;

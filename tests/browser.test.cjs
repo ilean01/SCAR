@@ -47,7 +47,8 @@ const today = new Date().toLocaleDateString("en-CA");
   page.on("requestfailed", (r) => console.log("REQUEST", r.url(), r.failure()));
   globalThis.debugPage = page;
   await page.goto("http://127.0.0.1:4173");
-  await page.locator("[data-prod]").first().waitFor();
+  await page.locator("[data-prod]").first().waitFor({ state: "attached" });
+  await page.locator("#moreDetails > summary").click();
   await page.screenshot({
     path: require("path").join(require("os").tmpdir(), "scar-desktop.png"),
     fullPage: true,
@@ -92,6 +93,7 @@ const today = new Date().toLocaleDateString("en-CA");
   // Calendar opens the actual historical date.
   await page.locator(".barra [data-nav=calendario]").click();
   await page.locator("[data-date]").first().click();
+  await page.locator("#editSheet").click();
   await page.waitForFunction(() =>
     document.querySelector("#fechaActual").value.endsWith("-01"),
   );
@@ -134,10 +136,11 @@ const today = new Date().toLocaleDateString("en-CA");
   assert.equal(await page.locator("#fotosHoy img").count(), 1);
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
-  await page.locator("[data-prod]").first().waitFor();
+  await page.locator("[data-prod]").first().waitFor({ state: "attached" });
   await context.setOffline(true);
   await page.reload();
-  await page.locator("[data-prod]").first().waitFor();
+  await page.locator("[data-prod]").first().waitFor({ state: "attached" });
+  await page.locator("#moreDetails > summary").click();
   await page.locator("#notasHoy").fill("Guardado sin internet");
   await page.locator('[data-mood="3"]').click();
   await context.setOffline(false);
@@ -248,6 +251,7 @@ const today = new Date().toLocaleDateString("en-CA");
   await page.waitForFunction(
     () => document.querySelector("#notasHoy").value === "",
   );
+  await page.locator("#moreDetails > summary").click();
   await page.locator("#notasHoy").fill("Cuenta A en la nube");
   await page.locator(".barra [data-nav=ajustes]").click();
   await page.locator("#syncNow").click();

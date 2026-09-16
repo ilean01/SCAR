@@ -135,6 +135,19 @@ try {
   console.log("PASS routine deletion keeps user_id");
   await db.exec(fs.readFileSync(root + "/supabase/migrar_v3_a_v4.sql", "utf8"));
   console.log("PASS migration is repeatable");
+  const v5 = fs.readFileSync(root + "/supabase/migrar_v4_a_v5.sql", "utf8");
+  await db.exec(v5);
+  await db.exec(v5);
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${uid}'`);
+  const product5 = "10000000-0000-4000-8000-000000000005";
+  await db.query("select public.scar_guardar_v5($1,$2,0)", ["productos", {id:product5,nombre:"Foto privada",foto:"data:image/jpeg;base64,YWJj"}]);
+  assert.equal((await db.query("select foto from public.productos where id=$1", [product5])).rows[0].foto, "data:image/jpeg;base64,YWJj");
+  await assert.rejects(db.query("select public.scar_guardar_v5($1,$2,0)", ["productos", {id:"10000000-0000-4000-8000-000000000006",nombre:"URL no permitida",foto:"https://example.com/a.jpg"}]));
+  await save("registros", {id:"30000000-0000-4000-8000-000000000005",fecha:"2026-09-10",sesiones:{cuidados:[{id:"c1",nombre:"Mascarilla",hora:"16:30",productos:[{id:product5,nombre:"Foto privada"}]}],clima:{fuente:"Open-Meteo",hora:"2026-09-10T16:30"}}});
+  assert.equal((await db.query("select sesiones from public.registros where fecha='2026-09-10'")).rows[0].sesiones.cuidados[0].hora,"16:30");
+  await db.exec(`set request.jwt.claim.sub='${uid2}'`);
+  assert.equal((await db.query("select * from public.productos where id=$1",[product5])).rows.length,0);
+  console.log("PASS V5 repeated migration, photo persistence and isolation, arbitrary timed care and weather metadata");
 } catch (e) {
   console.error(e.message, e.detail, e.where);
   process.exit(1);

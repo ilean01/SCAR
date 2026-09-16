@@ -18,7 +18,21 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
 
-## Novedades visuales V4.1
+## V5 · registro rápido, cuidados libres y fotos
+
+La pantalla inicial prioriza carita, rutina habitual y foto. “Agregar más” conserva el registro detallado. Elegir una plantilla no marca productos; tocar “Hice esta rutina” sí confirma explícitamente todos sus pasos y registra la hora local. Cada cuidado adicional tiene nombre libre (tarde, mascarilla, etc.), productos, notas y hora editable. No hay obligación de cumplir mañana/noche. Los cuidados se conservan en `registros.sesiones.cuidados`, con copias de nombres/productos; los registros anteriores siguen disponibles.
+
+- Calendario: abre una ficha con datos, zonas, síntomas, intensidades y fotos, con botón para editar.
+- Comparar: dos fechas y el mismo ángulo; no se sustituye silenciosamente una foto que falta por otro ángulo.
+- Cámara con guía: requiere HTTPS y permiso de cámara. Referencia anterior por fecha/ángulo, opacidad 0–100% (30% inicial). La referencia nunca se incluye en el JPEG capturado; cámara y referencia se muestran sin espejo. Se detiene la cámara al cerrar o pasar la app al fondo. La selección nativa de archivos sigue disponible.
+- Importación de fotos: acepta archivos de imagen sin MIME declarado, carga mediante eventos y alternativa ImageBitmap. HEIC depende del decodificador del navegador; si no puede abrirse, se indica usar JPG/PNG o la cámara con guía. No se promete conversión universal de HEIC ni compatibilidad con todos los navegadores integrados.
+- Fotos de productos: miniatura JPEG de hasta 400 px, guardada en `productos.foto` con RLS. Hace falta ejecutar **supabase/migrar_v4_a_v5.sql** después de V4. El RPC V5 evita informar que la foto se sincronizó si la migración falta. No hay bucket público. Para una instalación nueva: instalador V4 y después migración V5. No volver a ejecutar la migración V3 después de V5.
+- Clima: Open-Meteo, solo tras activar la opción y aceptar geolocalización. Envía coordenadas redondeadas a dos decimales; no se guardan. Registra temperatura, humedad, fuente y hora del modelo. Consulta una vez por día al abrir la app, con actualización manual; nunca usa clima actual para rellenar el pasado. Si falla o se rechaza el permiso, el diario sigue funcionando. La API gratuita está pensada para uso no comercial; revisar sus condiciones antes de comercializar SCAR.
+- Estadísticas: porcentajes de uso y promedio de piel ocultos con n < 5, denominadores visibles; los días sin registro no cuentan como ausencia de síntomas. No hay inferencia causal ni correlaciones por fase del ciclo.
+
+Los permisos de cámara/geolocalización y los formatos de foto deben probarse también en el iPhone físico. Las pruebas automatizadas usan Chromium, cámara simulada y API meteorológica simulada; no configuran tu Supabase real.
+
+## Novedades anteriores V4.1
 
 - La paleta crema, rosa y ciruela se conserva. Stickers SVG propios de moños, flores y corazones, disponibles sin conexión.
 - 31 frases originales: una por día según la fecha local del dispositivo, con botón Otra frase. La selección manual dura mientras la app esté abierta; al reabrir vuelve la frase del día. La colección se repite cada 31 días.
