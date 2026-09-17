@@ -878,7 +878,10 @@ async function renderEvolution() {
   $("#evolucion").innerHTML = html;
 }
 async function renderSettings() {
-  await renderEvolution();
+  try { await renderEvolution(); }
+  catch (error) {
+    $("#evolucion").innerHTML = `<article class="tarjeta" role="alert"><h2>No pudimos cargar tu evolución</h2><p>Tus registros no se borraron. ${esc(friendly(error))}</p><button class="boton" data-nav="ajustes">Volver a cargar los análisis</button></article>`;
+  }
   const rows = (
       await Promise.all(
         TABLES.map(async (t) =>
@@ -894,7 +897,6 @@ async function renderSettings() {
     : `<h2>Iniciá sesión para abrir tu diario.</h2>`;
   $("#ajustes").innerHTML =
     `<div class="settings-grid"><article class="tarjeta">${auth}</article><article class="tarjeta"><span class="eyebrow">TUS RECUERDOS</span><h2>Una copia para vos</h2><p>Exportá tus registros y fotos. Las fotos que están en la nube necesitan conexión para descargarse.</p><button class="boton secundario" id="exportar">Descargar copia JSON</button><p class="fineprint">El archivo contiene tus datos personales. Guardalo donde solo vos tengas acceso.</p><h2 style="margin-top:26px">Recordatorio diario</h2><p>Elegí una hora y descargá un recordatorio para agregarlo al calendario de tu teléfono.</p><label class="campo-label" for="reminderTime">Hora</label><input id="reminderTime" type="time" value="21:00"><button class="boton secundario" id="reminderIcs">Agregar a mi calendario</button><h2 style="margin-top:26px">Siempre a mano</h2><p>En Safari de tu iPhone: Compartir → Agregar a inicio.</p><button class="texto" id="persistir">Conservar el guardado en este dispositivo</button></article>${conflicts.length ? `<article class="tarjeta wide"><h2>Cambios para revisar</h2><p>Este dato cambió en otro dispositivo. Elegí qué versión conservar.</p>${conflicts.map((r) => `<div class="conflict"><strong>${esc(r.nombre || r.fecha || r.fechaInicio || "Registro")} · ${esc(r.__table)}</strong><details><summary>Ver ambas versiones</summary><p>Este dispositivo</p><pre>${esc(JSON.stringify(clean(r), null, 2))}</pre><p>La nube</p><pre>${esc(JSON.stringify(clean(r.__remote || {}), null, 2))}</pre></details><div class="form-actions"><button class="boton auto" data-resolve="local" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Conservar la de aquí</button><button class="boton secundario auto" data-resolve="remote" data-table="${r.__table}" data-key="${esc(r.fecha || r.id)}">Usar la de la nube</button></div></div>`).join("")}</article>` : ""}${errors.length ? `<article class="tarjeta wide"><h2>Pendiente de guardar en la nube</h2>${errors.map((r) => `<p>${esc(r.nombre || r.fecha || r.fechaInicio || r.__table)}: ${esc(friendly({ message: r.__error }))}</p>`).join("")}<p>Los cambios siguen guardados en este dispositivo.</p></article>` : ""}</div>`;
-  $("#ajustes").insertAdjacentHTML("afterbegin", '<details class="tarjeta"><summary>Actualización V6 · análisis de envases</summary><p>Después de V5, ejecutá una vez <a href="./supabase/migrar_v5_a_v6.sql" target="_blank" rel="noopener">migrar_v5_a_v6.sql</a> en Supabase → SQL Editor. Conserva tus datos y agrega la fecha real de finalización de cada envase.</p></details>');
 }
 function clean(r) {
   return Object.fromEntries(
