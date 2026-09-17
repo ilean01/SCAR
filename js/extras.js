@@ -59,6 +59,10 @@ export function initExtras(api) {
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
   $(".barra").append($(".barra [data-nav=ajustes]"));
   initRunner(A);
+  $(".day-heading").insertAdjacentHTML("afterend", '<div class="day-context"><time id="localClock" aria-label="Hora local"></time><div id="weatherInline"></div></div>');
+  $("#weatherInline").replaceWith($("#weatherCard"));
+  const updateClock=()=>{$("#localClock").textContent=new Intl.DateTimeFormat("es-PY",{hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date());};
+  updateClock();setInterval(updateClock,1000);
   $("#quickCard").insertAdjacentHTML("beforebegin", '<article class="tarjeta" id="scheduledProducts"></article>');
   $("#quickCard").insertAdjacentHTML("afterend", '<details class="tarjeta" id="sunCare"><summary>Protector solar · aplicaciones y recordatorio</summary><div id="sunCareBody"></div></details>');
   setInterval(updateSunReminder, 30000);
@@ -153,9 +157,13 @@ export async function renderExtras(r) {
     card.querySelector("[data-session-time]").onchange = e => {const value=e.target.value;A.action(()=>A.mutate(d=>{d.sesiones ||= {}; d.sesiones[m] ||= {nombre:m,plan:[]};d.sesiones[m].hora=value;}));};
   }
   const weather = r.sesiones?.clima;
-  $("#weatherCard").innerHTML = `<details><summary>Clima automático · opcional</summary><p class="ayuda">Con tu permiso, enviamos ubicación aproximada a Open-Meteo. No guardamos coordenadas. Se consulta al abrir el día actual; no funciona en segundo plano.</p>${weather ? `<p>${esc(r.temperatura)} °C · ${esc(r.humedad)} % humedad<br><small>${esc(weather.hora)} · estimación del modelo, no sensor local</small></p>` : '<p class="ayuda">Sin dato registrado. No completamos días pasados con el clima de hoy.</p>'}<button class="texto" id="weatherEnable">${localStorage.getItem("scar-weather") === "yes" ? "Actualizar clima" : "Activar clima automático"}</button> <button class="texto" id="weatherDisable">Desactivar</button><p id="weatherError" role="status"></p><a href="https://open-meteo.com/" target="_blank" rel="noopener">Datos: Open-Meteo</a></details>`;
-  $("#weatherEnable").onclick = () => {localStorage.setItem("scar-weather","yes");weatherFetch();};
-  $("#weatherDisable").onclick = () => {localStorage.removeItem("scar-weather");A.toast("Clima automático desactivado.");};
+  const enabled=localStorage.getItem("scar-weather")==="yes";
+  $("#weatherCard").innerHTML = `<span>${weather ? `${esc(r.temperatura)} °C · ${esc(r.humedad)} % humedad` : "Clima sin registrar"}</span> <button class="texto" id="weatherEnable" ${r.fecha===dateISO()?'':'disabled'} aria-label="Activar o actualizar clima">${enabled?'↻':'Ver clima'}</button> <button class="texto" id="weatherDisable" ${enabled?'':'hidden'}>Desactivar</button> <a href="https://open-meteo.com/" target="_blank" rel="noopener" title="Datos meteorológicos estimados de Open-Meteo">Open-Meteo</a><span id="weatherError" role="status"></span>`;
+  $("#weatherEnable").onclick = () => {
+    if(localStorage.getItem("scar-weather")!=="yes" && !confirm("Para mostrar el clima, enviaremos tu ubicación aproximada a Open-Meteo. SCAR no guarda las coordenadas. ¿Querés activarlo?"))return;
+    localStorage.setItem("scar-weather","yes");$("#weatherDisable").hidden=false;$("#weatherEnable").textContent="↻";weatherFetch();
+  };
+  $("#weatherDisable").onclick = () => {localStorage.removeItem("scar-weather");$("#weatherDisable").hidden=true;$("#weatherEnable").textContent="Ver clima";A.toast("Clima automático desactivado.");};
   if(localStorage.getItem("scar-weather") === "yes" && !weather && A.date()===dateISO() && weatherAttempt !== A.owner()+A.date()) weatherFetch();
 }
 async function careForm(id, routineId, defaultName = "") {
