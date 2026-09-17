@@ -878,6 +878,7 @@ async function renderEvolution() {
   $("#evolucion").innerHTML = html;
 }
 async function renderSettings() {
+  await renderEvolution();
   const rows = (
       await Promise.all(
         TABLES.map(async (t) =>
@@ -955,13 +956,13 @@ async function renderCurrent() {
   if (view === "hoy") await renderHoy();
   if (view === "productos") await renderProducts();
   if (view === "calendario") await renderCalendar();
-  if (view === "evolucion") await renderEvolution();
   if (view === "ajustes") await renderSettings();
   if (view === "comparar") await renderCompare();
   if (view === "ciclo") await renderCyclePage();
   icons();
 }
 async function navigate(v) {
+  if (v === "evolucion") v = "ajustes";
   view = v;
   $$(".vista").forEach((e) =>
     e.classList.toggle("activa", e.id === "vista-" + v),
