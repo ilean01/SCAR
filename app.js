@@ -29,6 +29,7 @@ import { compressImage, dataURL } from "./js/media.js";
 import { initExtras, renderExtras, daySheet, renderCompare } from "./js/extras.js";
 import { cycleObservations, productObservations, inventoryObservations } from "./js/analytics.js";
 import { due, scheduleFields, readSchedule } from "./js/schedule.js";
+import { setStepTimer } from "./js/step-timers.js";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   cloud = new Cloud();
@@ -1217,6 +1218,8 @@ function events() {
         checked = el.checked;
       action(async () => {
         const p = checked ? await get(db, "productos", prod) : null;
+        const day=await readRecord(db,fecha);
+        const routine=day.rutinas?.[momento] ? await get(db,"rutinas",day.rutinas[momento]) : null;
         if (momento === "mañana" && (p?.programacion?.solo_noche || p?.momento === "noche")) toast("Aviso: " + p.nombre + " está marcado solo de noche. Revisá las indicaciones del producto.");
         return mutateDay((r) => {
           r.productosUsados ||= { mañana: [], noche: [] };
@@ -1224,6 +1227,7 @@ function events() {
           r.productosUsados[momento] = checked
             ? [...new Set([...old, prod])]
             : old.filter((x) => x !== prod);
+          setStepTimer(r,momento,prod,checked,routine?.esperas?.[prod]);
           if (r.sesiones?.[momento]) r.sesiones[momento].estado = "pendiente";
         });
       });

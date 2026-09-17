@@ -2,6 +2,7 @@ import { dateISO, escapeHTML as esc, cycleInfo } from "./core.js";
 import { daypart } from "./daypart.js";
 import { initRunner, renderRunner, startRoutine } from "./runner.js";
 import { due } from "./schedule.js";
+import { initStepTimers, renderStepTimers } from "./step-timers.js";
 let A, stream, urls = [], cameraDate, cameraOwner, dialogOwner, weatherBusy = false, weatherAttempt;
 let shownPeriod, lastToday = dateISO(), morningCard, nightCard;
 const $ = s => document.querySelector(s);
@@ -59,6 +60,7 @@ export function initExtras(api) {
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
   $(".barra").append($(".barra [data-nav=ajustes]"));
   initRunner(A);
+  initStepTimers(A);
   $(".day-heading").insertAdjacentHTML("afterend", '<div class="day-context"><time id="localClock" aria-label="Hora local"></time><div id="weatherInline"></div></div>');
   $("#weatherInline").replaceWith($("#weatherCard"));
   const updateClock=()=>{$("#localClock").textContent=new Intl.DateTimeFormat("es-PY",{hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date());};
@@ -108,6 +110,7 @@ export async function renderExtras(r) {
   $("#scheduledProducts").innerHTML = '<h3>Hoy también toca…</h3>' + scheduled.map(p=>`<p>${esc(p.nombre)} · ${p.programacion?.solo_noche || p.momento==='noche' ? 'solo de noche' : esc(p.momento || 'a tu manera')}</p>`).join('');
   renderSunCare(r);
   renderRunner(r);
+  renderStepTimers(r);
   shownPeriod = dateISO() + period.key;
   const holder = $("#currentCare"), grid = document.querySelector("#moreDetails .ritual-grid"), completed = $("#completedRituals"), completedList = $("#completedRitualList");
   grid.append(morningCard, nightCard);

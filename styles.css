@@ -43,7 +43,10 @@
 #localClock { font-variant-numeric: tabular-nums; }
 .session-time { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .session-time input { width: auto; }
-.product-photo { width: 100%; height: 100%; max-height: 160px; object-fit: contain; border-radius: 14px; }
+.product-photo { display: block; width: 100%; height: 100%; min-height: 0; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 14px; }
+.inline-step-timer { padding: 16px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); text-align: center; }
+.inline-step-timer .wait-ring { width: 170px; height: 170px; }
+.inline-step-timer .form-actions { justify-content: center; flex-wrap: wrap; }
 #extraDialog { width: min(760px, calc(100% - 24px)); max-height: 90dvh; overflow-y: auto; padding: 36px 24px; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); color: var(--ink); }
 #extraDialog::backdrop { background: #50394166; }
 #extraDialog h2 { margin: 0 30px 20px 0; }
@@ -480,7 +483,7 @@ textarea {
   cursor: pointer;
   min-height: 44px;
 }
-.check input {
+.check input[type="checkbox"], .check input[type="radio"] {
   width: 19px;
   height: 19px;
   accent-color: var(--rose);
@@ -858,13 +861,18 @@ textarea {
   gap: 16px;
 }
 .product {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--paper);
 }
 .product-art {
-  height: 102px;
+  height: 220px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
   display: grid;
   place-items: center;
   background: #f4e7e3;
@@ -1341,7 +1349,7 @@ dialog h2 {
     font-size: 19px;
   }
   .product-art {
-    height: 85px;
+    height: 180px;
   }
   .product-actions {
     flex-wrap: wrap;
