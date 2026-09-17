@@ -32,11 +32,11 @@ export function initExtras(api) {
   $("#extraClose").onclick = () => $("#extraDialog").close();
   $("#extraDialog").addEventListener("close", release);
   document.addEventListener("visibilitychange", () => { if(document.hidden && stream) $("#extraDialog").close(); });
-  const day = $("#vista-hoy"), details = document.createElement("details");
-  details.id = "moreDetails"; details.innerHTML = '<summary>Agregar más · productos, zonas, hábitos y ciclo</summary>';
+  const day = $("#vista-hoy"), details = document.createElement("section");
+  details.id = "moreDetails"; details.setAttribute("aria-label", "Productos, zonas y hábitos");
   const start = day.querySelector(".section-heading");
   while(start.nextElementSibling) details.append(start.nextElementSibling);
-  details.prepend(start); details.insertBefore(details.querySelector("summary"), details.firstChild);
+  details.prepend(start);
   day.append(details);
   details.insertAdjacentHTML("beforebegin", '<article id="quickCard" class="tarjeta"><span class="eyebrow">LO ESENCIAL, A TU MANERA</span><h2>Un toque para cuidarte</h2><div id="quickMood"></div><div id="quickRoutine"></div><div class="form-actions"><button class="boton auto" id="freeCare">+ Otro cuidado</button></div><div id="careList"></div><div id="quickPhotos"></div><div id="weatherCard"></div></article>');
   details.insertAdjacentHTML("afterend", '<section id="completedRituals" hidden><div class="section-heading compact"><div><span class="eyebrow">LISTO POR HOY</span><h2>Cuidados terminados</h2></div><span aria-hidden="true">♡</span></div><div id="completedRitualList" class="ritual-grid"></div></section>');
@@ -66,7 +66,12 @@ export function initExtras(api) {
   const updateClock=()=>{$("#localClock").textContent=new Intl.DateTimeFormat("es-PY",{hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date());};
   updateClock();setInterval(updateClock,1000);
   $("#quickCard").insertAdjacentHTML("beforebegin", '<article class="tarjeta" id="scheduledProducts"></article>');
-  $("#quickCard").insertAdjacentHTML("afterend", '<details class="tarjeta" id="sunCare"><summary>Protector solar · aplicaciones y recordatorio</summary><div id="sunCareBody"></div></details>');
+  $(".day-context").insertAdjacentHTML("beforeend", '<button type="button" class="texto" id="openSunCare" aria-haspopup="dialog">☀ Protector solar</button>');
+  $("#openSunCare").onclick=()=>A.action(async()=>{
+    const record=await A.record(A.date());
+    dialog("Mi protector solar", '<div id="sunCareBody"></div>');
+    renderSunCare(record);
+  });
   setInterval(updateSunReminder, 30000);
   document.addEventListener('visibilitychange', updateSunReminder);
   $("#app").insertAdjacentHTML("beforeend", '<section id="vista-comparar" class="vista"><div class="titulo-vista"><h1>Tu piel, <em>en perspectiva.</em></h1><p>Compará el mismo ángulo con luz y distancia parecidas. No es un diagnóstico.</p></div><div id="comparePanel"></div></section>');
@@ -128,7 +133,7 @@ export async function renderExtras(r) {
     holder.innerHTML = '<article class="tarjeta afternoon"><span class="eyebrow">15:00–20:00 · A TU MANERA</span><h2>Un cuidado extra</h2><p>Una mascarilla, un retoque o lo que elijas. Este momento es opcional.</p><button class="boton" id="afternoonCare">+ Agregar cuidado de tarde</button></article>';
     $("#afternoonCare").onclick = () => A.action(() => careForm(null,null,"Cuidado de tarde"));
   }
-  if(today) holder.insertAdjacentHTML("afterbegin", `<p class="ayuda time-window">${esc(period.range)} · hora de tu dispositivo. Podés registrar otros cuidados en “Agregar más”.</p>`);
+  if(today) holder.insertAdjacentHTML("afterbegin", `<p class="ayuda time-window">${esc(period.range)} · hora de tu dispositivo.</p>`);
   const routines = (await A.all("rutinas")).filter(x => !x.eliminado && x.activa !== false && (!today || x.momento === "cualquiera" || x.momento === period.key));
   const regs = await A.all("registros");
   const recent = regs.filter(x => !x.eliminado).sort((a,b) => b.fecha.localeCompare(a.fecha)).flatMap(x => [...(x.sesiones?.cuidados || [])].reverse()).find(x => x.rutina_id);
@@ -184,6 +189,7 @@ function updateSunReminder() {
 function renderSunCare(r) {
   const s=r.sesiones?.protector || {}, entries=s.aplicaciones || [], today=r.fecha===dateISO();
   sunDeadline = today && s.recordatorio && entries.length ? entries.at(-1).instante + 120*60000 : null;
+  if (!$('#sunCareBody')) return;
   $('#sunCareBody').innerHTML = `<p><strong>${entries.length} aplicación(es) · ${Math.max(0,entries.length-1)} reaplicación(es)</strong></p><p>${entries.map(x=>esc(x.hora)).join(' · ') || 'Sin aplicaciones registradas en este contador.'}</p><button type="button" class="boton auto" id="sunApply" ${today?'':'disabled'}>${entries.length?'Reapliqué protector':'Primera aplicación del día'}</button> <button type="button" class="texto" id="sunUndo" ${entries.length?'':'disabled'}>Deshacer última</button><label class="check"><input id="sunReminder" type="checkbox" ${s.recordatorio?'checked':''}>Avisarme a las dos horas en la app</label><p id="sunReminderStatus" role="status"></p><p class="fineprint">El aviso se actualiza al volver a SCAR; no envía notificaciones con la app cerrada. Al aire libre, reaplicá aproximadamente cada dos horas y después de nadar o sudar, siguiendo el envase. <a href="https://www.aad.org/media/stats-sunscreen" target="_blank" rel="noopener">Fuente: AAD</a></p>`;
   const date=r.fecha;
   $('#sunApply').onclick=()=>A.action(()=>A.mutate(d=>{d.sesiones ||= {};d.sesiones.protector ||= {};d.sesiones.protector.aplicaciones ||= [];d.sesiones.protector.aplicaciones.push({instante:Date.now(),hora:time()});d.uso_protector=true;},true,date));

@@ -49,7 +49,7 @@ const today = new Date().toLocaleDateString("en-CA");
   globalThis.debugPage = page;
   await page.goto("http://127.0.0.1:4173");
   await page.locator("[data-prod]").first().waitFor({ state: "attached" });
-  await page.locator("#moreDetails > summary").click();
+  
   await page.screenshot({
     path: require("path").join(require("os").tmpdir(), "scar-desktop.png"),
     fullPage: true,
@@ -149,7 +149,7 @@ const today = new Date().toLocaleDateString("en-CA");
   await context.setOffline(true);
   await page.reload();
   await page.locator("[data-prod]").first().waitFor({ state: "attached" });
-  await page.locator("#moreDetails > summary").click();
+  
   await page.locator("#notasHoy").fill("Guardado sin internet");
   await page.locator('[data-mood="3"]').click();
   await context.setOffline(false);
@@ -260,7 +260,7 @@ const today = new Date().toLocaleDateString("en-CA");
   await page.waitForFunction(
     () => document.querySelector("#notasHoy").value === "",
   );
-  await page.locator("#moreDetails > summary").click();
+  
   await page.locator("#notasHoy").fill("Cuenta A en la nube");
   await page.locator(".barra [data-nav=ajustes]").click();
   await page.locator("#syncNow").click();

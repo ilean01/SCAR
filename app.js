@@ -1443,7 +1443,7 @@ async function init() {
       if (fecha === previous && previous !== today) fecha = today;
       if (view === "hoy") await renderHoy();
     },
-    editDate: date => action(async () => { fecha = date; await navigate("hoy"); $("#moreDetails").open = true; }),
+    editDate: date => action(async () => { fecha = date; await navigate("hoy"); }),
   });
   await normalizeLegacy(guest);
   events();
