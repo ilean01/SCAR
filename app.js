@@ -177,7 +177,7 @@ function friendly(e) {
     e.code === "PGRST202" ||
     /scar_guardar|relation .*does not exist/i.test(e.message)
   )
-    return /scar_guardar_v7/i.test(e.message) ? "Falta ejecutar migrar_v6_a_v7.sql en Supabase. Tus cambios siguen guardados en este dispositivo." : /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
+    return /scar_guardar_v8/i.test(e.message) ? "Falta ejecutar migrar_v7_a_v8.sql para sincronizar las esperas de tus rutinas. Los cambios siguen guardados aquí." : /scar_guardar_v7/i.test(e.message) ? "Falta ejecutar migrar_v6_a_v7.sql en Supabase. Tus cambios siguen guardados en este dispositivo." : /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
   return e.message;
 }
 async function renderHoy() {
@@ -487,7 +487,7 @@ async function routineModal(id, momento = "cualquiera") {
       sorted
         .map(
           (p) =>
-            `<div class="check"><input id="rp-${esc(p.id)}" type="checkbox" name="productos" value="${esc(p.id)}" ${r.productos?.includes(p.id) ? "checked" : ""}><label for="rp-${esc(p.id)}">${esc(p.nombre)}</label><span class="order"><button type="button" data-order="-1" aria-label="Subir ${esc(p.nombre)}">↑</button><button type="button" data-order="1" aria-label="Bajar ${esc(p.nombre)}">↓</button></span></div>`,
+            `<div class="check"><input id="rp-${esc(p.id)}" type="checkbox" name="productos" value="${esc(p.id)}" ${r.productos?.includes(p.id) ? "checked" : ""}><label for="rp-${esc(p.id)}">${esc(p.nombre)}<span class="campo-label">Espera después · minutos<input type="number" name="wait-${esc(p.id)}" min="0" max="180" step="0.5" value="${Number(r.esperas?.[p.id])||0}"></span></label><span class="order"><button type="button" data-order="-1" aria-label="Subir ${esc(p.nombre)}">↑</button><button type="button" data-order="1" aria-label="Bajar ${esc(p.nombre)}">↓</button></span></div>`,
         )
         .join("") +
       "</div>" +
@@ -677,10 +677,12 @@ async function saveForm(e) {
         momento: f.get("momento"),
         descripcion: f.get("descripcion"),
         productos: f.getAll("productos"),
+        esperas: Object.fromEntries(f.getAll("productos").map(id=>[id,Number(f.get("wait-"+id))||0])),
         activa: true,
         eliminado: false,
       };
       if (!r.nombre) throw Error("Tu rutina necesita un nombre.");
+      if(Object.values(r.esperas).some(n=>!Number.isFinite(n)||n<0||n>180))throw Error("Las esperas deben estar entre 0 y 180 minutos.");
     }
     if (kind === "envase") {
       t = "envases";

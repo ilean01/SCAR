@@ -1,5 +1,6 @@
 import { dateISO, escapeHTML as esc, cycleInfo } from "./core.js";
 import { daypart } from "./daypart.js";
+import { initRunner, renderRunner, startRoutine } from "./runner.js";
 import { due } from "./schedule.js";
 let A, stream, urls = [], cameraDate, cameraOwner, dialogOwner, weatherBusy = false, weatherAttempt;
 let shownPeriod, lastToday = dateISO(), morningCard, nightCard;
@@ -58,6 +59,7 @@ export function initExtras(api) {
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
   $(".barra").append($(".barra [data-nav=ajustes]"));
   initCareTimer();
+  initRunner(A);
   $("#quickCard").insertAdjacentHTML("beforebegin", '<article class="tarjeta" id="scheduledProducts"></article>');
   $("#quickCard").insertAdjacentHTML("afterend", '<details class="tarjeta" id="sunCare"><summary>Protector solar · aplicaciones y recordatorio</summary><div id="sunCareBody"></div></details>');
   setInterval(updateSunReminder, 30000);
@@ -158,6 +160,7 @@ export async function renderExtras(r) {
   $("#scheduledProducts").hidden = !scheduled.length;
   $("#scheduledProducts").innerHTML = '<h3>Hoy también toca…</h3>' + scheduled.map(p=>`<p>${esc(p.nombre)} · ${p.programacion?.solo_noche || p.momento==='noche' ? 'solo de noche' : esc(p.momento || 'a tu manera')}</p>`).join('');
   renderSunCare(r);
+  renderRunner(r);
   shownPeriod = dateISO() + period.key;
   const holder = $("#currentCare"), grid = document.querySelector("#moreDetails .ritual-grid"), completed = $("#completedRituals"), completedList = $("#completedRitualList");
   grid.append(morningCard, nightCard);
@@ -180,8 +183,9 @@ export async function renderExtras(r) {
   const regs = await A.all("registros");
   const recent = regs.filter(x => !x.eliminado).sort((a,b) => b.fecha.localeCompare(a.fecha)).flatMap(x => [...(x.sesiones?.cuidados || [])].reverse()).find(x => x.rutina_id);
   const selected = $("#quickRoutine select")?.value || recent?.rutina_id || routines[0]?.id;
-  $("#quickRoutine").innerHTML = routines.length ? `<label class="campo-label" for="usualRoutine">Mi rutina habitual</label><select id="usualRoutine">${routines.map(x => option(x.id,x.nombre)).join("")}</select><button id="didRoutine" class="boton">Hice esta rutina · registrar ahora</button><p class="fineprint">Este botón confirma todos sus pasos. Para cambiar productos u hora, editá el cuidado.</p>` : '<p>Elegí qué cuidado querés hacer. No hay una mañana ni una noche obligatorias.</p><button class="texto" data-new-routine="cualquiera">+ Crear mi rutina habitual</button>';
+  $("#quickRoutine").innerHTML = routines.length ? `<label class="campo-label" for="usualRoutine">Mi rutina habitual</label><select id="usualRoutine">${routines.map(x => option(x.id,x.nombre)).join("")}</select><button id="startRoutine" class="boton">Empezar mi rutina</button><button id="didRoutine" class="texto">Ya la hice · registrar todo</button><p class="fineprint">Este botón confirma todos sus pasos. Para cambiar productos u hora, editá el cuidado.</p>` : '<p>Elegí qué cuidado querés hacer. No hay una mañana ni una noche obligatorias.</p><button class="texto" data-new-routine="cualquiera">+ Crear mi rutina habitual</button>';
   if($("#usualRoutine")) {
+    $("#startRoutine").onclick=()=>A.action(()=>startRoutine(routines.find(x=>x.id===$("#usualRoutine").value)));
     if(routines.some(x => x.id === selected)) $("#usualRoutine").value = selected;
     $("#didRoutine").onclick = () => { const id = $("#usualRoutine").value, date = A.date(); A.action(async () => {
       if(date !== dateISO()) return careForm(null,id);

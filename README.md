@@ -17,6 +17,14 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
 
+## V8 · rutina guiada
+
+- Editar rutina: configurar “Espera después” en minutos por paso (0 = sin espera, máximo 180). No se impone un tiempo ni se espera después del último producto.
+- Mi día → elegir rutina → Empezar mi rutina. “Ya me lo puse” registra ese producto e inicia automáticamente su espera circular. Permite pausar, continuar y saltar la espera; no aplica el siguiente producto automáticamente.
+- El progreso y la fecha límite se guardan en el registro del día. Se recuperan al reabrir esa fecha. Al finalizar, “Terminé mi rutina” guarda la hora y mueve el cuidado al bloque de terminados.
+- No hay notificaciones con la app cerrada. Los cambios simultáneos de dos dispositivos siguen usando resolución de conflictos.
+- **Si seguís en V6:** ejecutar solo `supabase/migrar_v6_a_v8.sql`, que incluye V7 y V8. **Si ya tenés V7:** ejecutar `supabase/migrar_v7_a_v8.sql`. No reinstalar tablas. Las instalaciones nuevas ya incluyen V8.
+
 ## V7.1 · fotos y ciclo
 
 - Una sola tarjeta de fotos, fuera de “Agregar más”: galería o cámara con selección de ángulo. Se eliminó la superposición y el control de opacidad; las fotos existentes no se borran. Comparar conserva fechas y ángulos.
