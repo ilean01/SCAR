@@ -1,5 +1,6 @@
 import { dateISO, escapeHTML as esc, cycleInfo } from "./core.js";
 import { daypart } from "./daypart.js";
+import { due } from "./schedule.js";
 let A, stream, urls = [], cameraDate, cameraOwner, dialogOwner, weatherBusy = false, weatherAttempt;
 let shownPeriod, lastToday = dateISO(), morningCard, nightCard;
 const $ = s => document.querySelector(s);
@@ -57,6 +58,10 @@ export function initExtras(api) {
   $(".barra").insertAdjacentHTML("beforeend", '<button data-nav="comparar"><span aria-hidden="true">◧</span><small>Comparar</small></button>');
   $(".barra").append($(".barra [data-nav=ajustes]"));
   initCareTimer();
+  $("#quickCard").insertAdjacentHTML("beforebegin", '<article class="tarjeta" id="scheduledProducts"></article>');
+  $("#quickCard").insertAdjacentHTML("afterend", '<details class="tarjeta" id="sunCare"><summary>Protector solar · aplicaciones y recordatorio</summary><div id="sunCareBody"></div></details>');
+  setInterval(updateSunReminder, 30000);
+  document.addEventListener('visibilitychange', updateSunReminder);
   $("#app").insertAdjacentHTML("beforeend", '<section id="vista-comparar" class="vista"><div class="titulo-vista"><h1>Tu piel, <em>en perspectiva.</em></h1><p>Compará el mismo ángulo con luz y distancia parecidas. No es un diagnóstico.</p></div><div id="comparePanel"></div></section>');
   $("#quickPhoto").onclick = () => $("#fotoInput").click();
   $("#freeCare").onclick = () => A.action(() => careForm());
@@ -67,6 +72,11 @@ export function initExtras(api) {
       if(dialogOwner !== A.owner()) throw Error("La cuenta cambió. Cerrá esta ventana y volvé a abrirla.");
       if(form.id === "careForm") {
         const name = String(data.get("name")).trim(); if(!name) throw Error("Dale un nombre a este cuidado.");
+        const hour=String(data.get('time') || (form.dataset.date===dateISO()?time():''));
+        if(hour>='06:00' && hour<'15:00') {
+          const products=await A.all('productos'), selected=data.getAll('product');
+          if(products.some(p=>selected.includes(p.id) && (p.programacion?.solo_noche || p.momento==='noche')) && !window.confirm('Hay productos marcados solo de noche. ¿Querés registrar este uso por la mañana igualmente?')) return;
+        }
         await A.mutate(r => {
           r.sesiones ||= {}; r.sesiones.cuidados ||= [];
           const previous = r.sesiones.cuidados.find(x => x.id === form.dataset.edit) || {};
@@ -138,6 +148,11 @@ function initCareTimer() {
 export async function renderExtras(r) {
   if(!A) return;
   const period = daypart(), today = r.fecha === dateISO();
+  const products = await A.all('productos');
+  const scheduled = products.filter(p=>!p.eliminado && p.activo!==false && p.programacion?.tipo && p.programacion.tipo!=='diaria' && due(p,r.fecha));
+  $("#scheduledProducts").hidden = !scheduled.length;
+  $("#scheduledProducts").innerHTML = '<h3>Hoy también toca…</h3>' + scheduled.map(p=>`<p>${esc(p.nombre)} · ${p.programacion?.solo_noche || p.momento==='noche' ? 'solo de noche' : esc(p.momento || 'a tu manera')}</p>`).join('');
+  renderSunCare(r);
   shownPeriod = dateISO() + period.key;
   const holder = $("#currentCare"), grid = document.querySelector("#moreDetails .ritual-grid"), completed = $("#completedRituals"), completedList = $("#completedRitualList");
   grid.append(morningCard, nightCard);
@@ -165,7 +180,11 @@ export async function renderExtras(r) {
     if(routines.some(x => x.id === selected)) $("#usualRoutine").value = selected;
     $("#didRoutine").onclick = () => { const id = $("#usualRoutine").value, date = A.date(); A.action(async () => {
       if(date !== dateISO()) return careForm(null,id);
-      const routine = routines.find(x => x.id === id), ps = await A.all("productos");
+      const original = routines.find(x => x.id === id), ps = await A.all("productos");
+      const routine = {...original, productos:(original.productos || []).filter(id=>due(ps.find(p=>p.id===id)||{},date))};
+      if(period.key==='mañana' && routine.productos.some(id=>{const p=ps.find(p=>p.id===id);return p?.programacion?.solo_noche || p?.momento==='noche';})) {
+        if(!window.confirm('Esta rutina contiene productos marcados solo de noche. ¿Querés registrar que los usaste igualmente?')) return;
+      }
       await A.mutate(day => { day.sesiones ||= {}; day.sesiones.cuidados ||= []; day.sesiones.cuidados.push({id:crypto.randomUUID(),rutina_id:id,nombre:routine.nombre,hora:time(),registrado_en:new Date().toISOString(),estado:"terminada",productos:(routine.productos || []).map(id => ({id,nombre:ps.find(x=>x.id===id)?.nombre || "Producto archivado"}))}); },true,date);
       A.toast("Cuidado registrado. Podés editarlo o quitarlo.");
     }); };
@@ -190,14 +209,33 @@ export async function renderExtras(r) {
 async function careForm(id, routineId, defaultName = "") {
   const date = A.date(), r = await A.record(date), ps=(await A.all("productos")).filter(p=>!p.eliminado);
   let c = r.sesiones?.cuidados?.find(x=>x.id===id) || {nombre:defaultName};
-  if(routineId) { const routine=(await A.all("rutinas")).find(x=>x.id===routineId);c={nombre:routine.nombre,productos:ps.filter(p=>routine.productos.includes(p.id))}; }
+  if(routineId) { const routine=(await A.all("rutinas")).find(x=>x.id===routineId);c={nombre:routine.nombre,productos:ps.filter(p=>routine.productos.includes(p.id) && due(p,date))}; }
   dialog(id ? "Editar cuidado" : "Un cuidado a tu manera", `<form id="careForm" data-date="${date}" data-edit="${esc(id || "")}"><label class="campo-label">Nombre<input name="name" required maxlength="180" placeholder="Mañana, tarde, mascarilla…" value="${esc(c.nombre || "")}"></label><label class="campo-label">Hora<input name="time" type="time" value="${esc(c.hora || (date===dateISO()?time():""))}"></label><p>Productos usados · opcional</p>${ps.map(p=>`<label class="check"><input name="product" type="checkbox" value="${p.id}" data-name="${esc(p.nombre)}" ${c.productos?.some(x=>x.id===p.id)?"checked":""}>${esc(p.nombre)}</label>`).join("")}<label class="campo-label">Notas<textarea name="notes">${esc(c.notas || "")}</textarea></label><button class="boton" type="submit">Guardar cuidado</button></form>`);
+}
+let sunDeadline = null;
+function updateSunReminder() {
+  const out = $('#sunReminderStatus');
+  if (!out || !sunDeadline) return;
+  const left = Math.max(0, Math.ceil((sunDeadline-Date.now())/60000));
+  out.textContent = left ? `Próximo aviso en ${left} min.` : 'Pasaron dos horas desde la última aplicación registrada. Revisá si corresponde reaplicar.';
+}
+function renderSunCare(r) {
+  const s=r.sesiones?.protector || {}, entries=s.aplicaciones || [], today=r.fecha===dateISO();
+  sunDeadline = today && s.recordatorio && entries.length ? entries.at(-1).instante + 120*60000 : null;
+  $('#sunCareBody').innerHTML = `<p><strong>${entries.length} aplicación(es) · ${Math.max(0,entries.length-1)} reaplicación(es)</strong></p><p>${entries.map(x=>esc(x.hora)).join(' · ') || 'Sin aplicaciones registradas en este contador.'}</p><button type="button" class="boton auto" id="sunApply" ${today?'':'disabled'}>${entries.length?'Reapliqué protector':'Primera aplicación del día'}</button> <button type="button" class="texto" id="sunUndo" ${entries.length?'':'disabled'}>Deshacer última</button><label class="check"><input id="sunReminder" type="checkbox" ${s.recordatorio?'checked':''}>Avisarme a las dos horas en la app</label><p id="sunReminderStatus" role="status"></p><p class="fineprint">El aviso se actualiza al volver a SCAR; no envía notificaciones con la app cerrada. Al aire libre, reaplicá aproximadamente cada dos horas y después de nadar o sudar, siguiendo el envase. <a href="https://www.aad.org/media/stats-sunscreen" target="_blank" rel="noopener">Fuente: AAD</a></p>`;
+  const date=r.fecha;
+  $('#sunApply').onclick=()=>A.action(()=>A.mutate(d=>{d.sesiones ||= {};d.sesiones.protector ||= {};d.sesiones.protector.aplicaciones ||= [];d.sesiones.protector.aplicaciones.push({instante:Date.now(),hora:time()});d.uso_protector=true;},true,date));
+  $('#sunUndo').onclick=()=>A.action(()=>A.mutate(d=>{d.sesiones?.protector?.aplicaciones?.pop();},true,date));
+  $('#sunReminder').onchange=e=>{const value=e.target.checked;A.action(()=>A.mutate(d=>{d.sesiones ||= {};d.sesiones.protector ||= {};d.sesiones.protector.recordatorio=value;},true,date));};
+  updateSunReminder();
 }
 export async function daySheet(date) {
   const r = await A.record(date), ss=await A.all("sintomas"), ps=await A.all("productos"), cs=await A.all("ciclos");
   const name = id => ss.find(s=>s.id===id)?.nombre || "Síntoma archivado";
   const intens = n => n==null?"Sin intensidad":["Ausente","Leve","Moderada","Fuerte"][n];
   dialog(`Tu día · ${date}`, `<button class="boton secundario" id="editSheet">Editar este día</button><h3>Cuidados</h3>${["mañana","noche"].map(m=>{const s=r.sesiones?.[m],used=r.productosUsados?.[m]||[];return s||used.length?`<p><strong>${esc(s?.nombre || m)}</strong> · ${esc(s?.hora || "Sin hora")} · ${esc(s?.estado || "Registrado")}<br>${used.map(id=>esc(ps.find(p=>p.id===id)?.nombre || "Producto archivado")).join(" · ")}</p>`:"";}).join("")}${(r.sesiones?.cuidados || []).map(c=>`<p><strong>${esc(c.nombre)}</strong> · ${esc(c.hora || "Sin hora")}<br>${(c.productos || []).map(p=>esc(p.nombre)).join(" · ")}<br>${esc(c.notas || "")}</p>`).join("")}<h3>Piel y contexto</h3><dl>${Object.entries(labels).map(([k,n])=>`<dt>${n}</dt><dd>${r[k]==null||r[k]===""?"Sin registrar":esc(typeof r[k]==="boolean"?(r[k]?"Sí":"No"):r[k])}</dd>`).join("")}</dl><h3>Sensaciones y zonas</h3>${(r.sintomas||[]).map(id=>`<p>${esc(name(id))} · ${intens(r.intensidades?.[id])}</p>`).join("")}${(r.zonas||[]).map(z=>`<p><strong>${esc(A.zoneName(z.zona_id))}</strong> · ${z.sintoma_id?esc(name(z.sintoma_id)):"Sin síntoma asociado"} · ${intens(z.intensidad)}<br>${esc(z.notas||"")}</p>`).join("")}<p>Etiquetas: ${esc((r.etiquetas_libres||[]).join(", ") || "Sin registrar")}</p><h3>Ciclo</h3><p>${esc(cycleInfo(cs,date,r.sangrado).title)}</p><h3>Fotos</h3><div class="sheet-photos">${(r.fotos||[]).map((f,i)=>`<figure><img id="sheetPhoto${i}" alt="${esc(f.angulo||"Sin ángulo")}"><figcaption>${esc(f.angulo||"Sin ángulo")}</figcaption></figure>`).join("") || "No hay fotos de este día."}</div>`);
+  const applications=r.sesiones?.protector?.aplicaciones || [];
+  $('#editSheet').insertAdjacentHTML('afterend', `<h3>Aplicaciones de protector registradas</h3><p>${applications.length} aplicación(es) · ${Math.max(0,applications.length-1)} reaplicación(es)</p><p>${applications.map(x=>esc(x.hora)).join(' · ') || 'Sin horarios registrados.'}</p>`);
   $("#editSheet").onclick = () => {$("#extraDialog").close();A.editDate(date);};
   await Promise.all((r.fotos||[]).map((f,i)=>fillPhoto($("#sheetPhoto"+i),f)));
 }

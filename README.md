@@ -17,6 +17,15 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
 
+## V7 · frecuencia y protector
+
+- Editar producto → Frecuencia y cuidados de uso: todos los días, días fijos de la semana o cada X días desde una fecha. La programación es por producto, compartida entre sus rutinas; no por paso independiente.
+- “Hoy también toca…” muestra productos programados. El registro rápido confirma solo los productos que corresponden a esa fecha. Los cuidados libres permiten registrar excepciones.
+- “Solo de noche” es una etiqueta elegida por la persona: avisa al marcarlo por la mañana y pide confirmación en el registro rápido. No deduce incompatibilidades por ingredientes.
+- Protector: primera aplicación, reaplicaciones, horas y deshacer última; el contador es independiente del antiguo sí/no. Recordatorio opcional a las dos horas dentro de la app, actualizado al volver a ella; no es Web Push ni suena con la app cerrada.
+- **Base existente V6:** ejecutar `supabase/migrar_v6_a_v7.sql`. Si tenés V4/V5, aplicar primero las migraciones intermedias en orden. Una instalación nueva con `instalar_scar.sql` ya incluye V7; no ejecutar después las migraciones antiguas.
+- Sin migrar, los cambios de programación quedan locales y pendientes de sincronización. No reinstalar ni borrar tablas.
+
 ## V6 · cuenta y análisis descriptivos
 
 - Sin una sesión válida, SCAR muestra primero el acceso y oculta el diario. La conexión pública de Supabase ya está incorporada; nunca se incluye una clave secreta.

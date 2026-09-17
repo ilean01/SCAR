@@ -28,6 +28,7 @@ import { renderNote, stickers, photoGuide, renderCycleRing } from "./js/journal.
 import { compressImage, dataURL } from "./js/media.js";
 import { initExtras, renderExtras, daySheet, renderCompare } from "./js/extras.js";
 import { cycleObservations, productObservations, inventoryObservations } from "./js/analytics.js";
+import { due, scheduleFields, readSchedule } from "./js/schedule.js";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   cloud = new Cloud();
@@ -176,7 +177,7 @@ function friendly(e) {
     e.code === "PGRST202" ||
     /scar_guardar|relation .*does not exist/i.test(e.message)
   )
-    return /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
+    return /scar_guardar_v7/i.test(e.message) ? "Falta ejecutar migrar_v6_a_v7.sql en Supabase. Tus cambios siguen guardados en este dispositivo." : /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
   return e.message;
 }
 async function renderHoy() {
@@ -236,7 +237,7 @@ async function renderHoy() {
         },
     );
     $("#productos" + suffix).innerHTML =
-      list
+      list.filter(p => due(p, fecha) || r.productosUsados?.[m]?.includes(p.id))
         .map((p, i) => {
           const checked = r.productosUsados?.[m]?.includes(p.id);
           return `<label class="check ${checked ? "usado" : ""}"><input type="checkbox" data-prod="${esc(p.id)}" data-momento="${m}" ${checked ? "checked" : ""}><span><span class="prod-name">${esc(p.nombre)}</span><span class="prod-meta">${esc(p.marca || p.categoria || "Tu pequeño ritual")}${p.eliminado ? " · Archivado" : ""}</span></span><span class="step-number">${String(i + 1).padStart(2, "0")}</span></label>`;
@@ -414,6 +415,7 @@ async function productModal(id) {
       field("Marca", "marca", p.marca || "") +
       '<label class="campo-label" for="productPhoto">Foto del producto · opcional</label><input id="productPhoto" name="productPhoto" type="file" accept="image/*"><label><input type="checkbox" name="removePhoto"> Quitar foto actual</label>' +
       field("Categoría", "categoria", p.categoria || "") +
+      scheduleFields(p, dateISO()) +
       select(
         "Momento",
         "momento",
@@ -643,6 +645,7 @@ async function saveForm(e) {
         nombre: String(f.get("nombre")).trim(),
         marca: String(f.get("marca")).trim(),
         categoria: String(f.get("categoria")).trim(),
+        programacion: readSchedule(f),
         momento: f.get("momento"),
         activo: f.has("activo"),
         favorito: f.has("favorito"),
@@ -1195,16 +1198,18 @@ function events() {
     if (el.dataset.prod) {
       const { prod, momento } = el.dataset,
         checked = el.checked;
-      action(() =>
-        mutateDay((r) => {
+      action(async () => {
+        const p = checked ? await get(db, "productos", prod) : null;
+        if (momento === "mañana" && (p?.programacion?.solo_noche || p?.momento === "noche")) toast("Aviso: " + p.nombre + " está marcado solo de noche. Revisá las indicaciones del producto.");
+        return mutateDay((r) => {
           r.productosUsados ||= { mañana: [], noche: [] };
           const old = r.productosUsados[momento] || [];
           r.productosUsados[momento] = checked
             ? [...new Set([...old, prod])]
             : old.filter((x) => x !== prod);
           if (r.sesiones?.[momento]) r.sesiones[momento].estado = "pendiente";
-        }),
-      );
+        });
+      });
     }
     if (el.dataset.routine) {
       const m = el.dataset.routine,
