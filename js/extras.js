@@ -161,12 +161,11 @@ export async function renderExtras(r) {
   }
   const weather = r.sesiones?.clima;
   const enabled=localStorage.getItem("scar-weather")==="yes";
-  $("#weatherCard").innerHTML = `<span>${weather ? `${esc(r.temperatura)} °C · ${esc(r.humedad)} % humedad` : "Clima sin registrar"}</span> <button class="texto" id="weatherEnable" ${r.fecha===dateISO()?'':'disabled'} aria-label="Activar o actualizar clima">${enabled?'↻':'Ver clima'}</button> <button class="texto" id="weatherDisable" ${enabled?'':'hidden'}>Desactivar</button> <a href="https://open-meteo.com/" target="_blank" rel="noopener" title="Datos meteorológicos estimados de Open-Meteo">Open-Meteo</a><span id="weatherError" role="status"></span>`;
+  $("#weatherCard").innerHTML = `<span>${weather ? `${esc(r.temperatura)} °C · ${esc(r.humedad)} % humedad` : "Clima sin registrar"}</span> <button class="texto" id="weatherEnable" ${r.fecha===dateISO()?'':'disabled'} aria-label="Activar o actualizar clima">${enabled?'↻':'Ver clima'}</button><span id="weatherError" role="status"></span>`;
   $("#weatherEnable").onclick = () => {
     if(localStorage.getItem("scar-weather")!=="yes" && !confirm("Para mostrar el clima, enviaremos tu ubicación aproximada a Open-Meteo. SCAR no guarda las coordenadas. ¿Querés activarlo?"))return;
-    localStorage.setItem("scar-weather","yes");$("#weatherDisable").hidden=false;$("#weatherEnable").textContent="↻";weatherFetch();
+    localStorage.setItem("scar-weather","yes");$("#weatherEnable").textContent="↻";weatherFetch();
   };
-  $("#weatherDisable").onclick = () => {localStorage.removeItem("scar-weather");$("#weatherDisable").hidden=true;$("#weatherEnable").textContent="Ver clima";A.toast("Clima automático desactivado.");};
   if(localStorage.getItem("scar-weather") === "yes" && !weather && A.date()===dateISO() && weatherAttempt !== A.owner()+A.date()) weatherFetch();
 }
 async function careForm(id, routineId, defaultName = "") {
