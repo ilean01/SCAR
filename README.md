@@ -17,6 +17,13 @@ Un diario personal de piel, pequeños rituales y ciclo. HTML, CSS y JavaScript v
 
 Las claves publishable y anon son públicas y se pueden incluir en una PWA. Nunca pongas una clave `service_role`, `sb_secret_…` ni la contraseña de la base de datos en el repositorio. El acceso a los datos depende de Supabase Auth y RLS.
 
+## V7.1 · fotos y ciclo
+
+- Una sola tarjeta de fotos, fuera de “Agregar más”: galería o cámara con selección de ángulo. Se eliminó la superposición y el control de opacidad; las fotos existentes no se borran. Comparar conserva fechas y ángulos.
+- Logo SVG para evitar que iPhone lo transforme en emoji verde.
+- Mi ciclo junto a Calendario: día, fase orientativa, historial editable, rango de duración entre inicios y acceso al cruce piel/ciclo. Mi espacio permanece último.
+- Esta actualización visual no requiere SQL nuevo. V6 → V7 sigue siendo necesaria para sincronizar frecuencias por producto.
+
 ## V7 · frecuencia y protector
 
 - Editar producto → Frecuencia y cuidados de uso: todos los días, días fijos de la semana o cada X días desde una fecha. La programación es por producto, compartida entre sus rutinas; no por paso independiente.

@@ -52,9 +52,8 @@
 .comparison label { display: block; margin: 10px 0; }
 .camera-stage { position: relative; aspect-ratio: 3/4; max-height: 55vh; margin: 14px auto; background: #31272b; }
 .camera-stage video, .camera-stage img { position: absolute; width: 100%; height: 100%; object-fit: contain; inset: 0; }
-.camera-stage img { opacity: .3; pointer-events: none; }
 #captureCamera { margin-top: 10px; }
-.barra { grid-template-columns: repeat(6, 1fr); }
+.barra { grid-template-columns: repeat(7, 1fr); }
 @media(max-width:600px) { .barra small { font-size: 9px; } #extraDialog { padding: 30px 16px; } }
 * {
   box-sizing: border-box;

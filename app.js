@@ -939,6 +939,16 @@ async function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast("Tu copia está lista.");
 }
+async function renderCyclePage() {
+  const today=dateISO(), cycles=(await all(db,"ciclos")).filter(c=>!c.eliminado).sort((a,b)=>a.fechaInicio.localeCompare(b.fechaInicio));
+  const r=await readRecord(db,today), info=cycleInfo(cycles,today,r.sangrado);
+  $("#faseHoy").textContent=info.title;
+  $("#prediccionCiclo").textContent=info.detail;
+  renderCycleRing(info,today);
+  $("#botonPeriodo").textContent=cycles.some(c=>!c.fechaFin)?"Terminó mi período hoy":"Empezó mi período hoy";
+  const lengths=cycles.slice(1).map((c,i)=>dayDiff(c.fechaInicio,cycles[i].fechaInicio));
+  $("#cycleOverview").innerHTML=`<article class="tarjeta"><span class="eyebrow">TU HISTORIAL, SIN SUPOSICIONES</span><h2>Cómo viene tu ciclo</h2><p>Hoy: ${esc(today)} · ${cycles.length} período(s) registrado(s).</p>${lengths.length?`<p>Duración entre inicios: ${Math.min(...lengths)}–${Math.max(...lengths)} días · n = ${lengths.length} intervalo(s).</p>`:'<p>Con un solo inicio todavía no podemos calcular cuánto dura tu ciclo.</p>'}<p class="ayuda">El día del ciclo se cuenta desde el primer día del período. La fecha de fin indica cuándo terminó el sangrado, no cuándo terminó el ciclo. Las fases y el próximo inicio son orientativos: no son una confirmación hormonal ni un diagnóstico.</p><details><summary>Mis períodos registrados</summary>${cycles.slice().reverse().map(c=>`<div class="item"><strong>${esc(c.fechaInicio)}</strong><p>${c.fechaFin?`Sangrado hasta ${esc(c.fechaFin)} · ${dayDiff(c.fechaFin,c.fechaInicio)+1} día(s)`:'Fin del sangrado pendiente'}</p><button class="texto" data-edit-cycle="${esc(c.id)}">Editar período</button></div>`).join('')||'<p>Todavía no registraste un período.</p>'}</details><button class="texto" data-nav="evolucion">Ver observaciones de piel y ciclo →</button></article>`;
+}
 async function renderCurrent() {
   if (view === "hoy") await renderHoy();
   if (view === "productos") await renderProducts();
@@ -946,6 +956,7 @@ async function renderCurrent() {
   if (view === "evolucion") await renderEvolution();
   if (view === "ajustes") await renderSettings();
   if (view === "comparar") await renderCompare();
+  if (view === "ciclo") await renderCyclePage();
   icons();
 }
 async function navigate(v) {
@@ -1131,19 +1142,20 @@ function events() {
         break;
       case "botonPeriodo":
         action(async () => {
+          const cycleDate=view === "ciclo" ? dateISO() : fecha;
           const cs = await all(db, "ciclos"),
             open = cs.find((c) => !c.eliminado && !c.fechaFin),
             c = open
-              ? { ...open, fechaFin: fecha }
+              ? { ...open, fechaFin: cycleDate }
               : {
                   id: crypto.randomUUID(),
-                  fechaInicio: fecha,
+                  fechaInicio: cycleDate,
                   fechaFin: null,
                   eliminado: false,
                 };
           validateCycle(c, cs);
           await save("ciclos", c);
-          await renderHoy();
+          await renderCurrent();
           toast("Período registrado.");
         });
         break;
