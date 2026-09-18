@@ -24,7 +24,7 @@ async function photoSrc(f) {
 }
 async function fillPhoto(img, f) {
   try { const u = await photoSrc(f); if (img.isConnected) img.src = u; }
-  catch(e) { if(img.isConnected) img.alt = e.message; }
+  catch(e) { if(img.isConnected) img.alt = (e?.message || "No se pudo completar la operación. Intentá de nuevo."); }
 }
 export function initExtras(api) {
   A = api;
@@ -103,7 +103,7 @@ export function initExtras(api) {
         },true,form.dataset.date);
         $("#extraDialog").close();
       }
-    } catch(err) { $("#extraError").textContent = err.message; } finally { if(b) b.disabled = false; }
+    } catch(err) { $("#extraError").textContent = (err?.message || "No se pudo completar la operación. Intentá de nuevo."); } finally { if(b) b.disabled = false; }
   }); });
 }
 export async function renderExtras(r) {
@@ -239,6 +239,6 @@ async function weatherFetch() {
 async function cameraForm() {
   cameraDate=A.date();cameraOwner=A.owner();
   dialog("Tu foto del día", `<label>Ángulo<select id="cameraAngle">${angles.map(a=>option(a)).join("")}</select></label><p class="ayuda">Elegí frente, perfil izquierdo o derecho. Usá luz y distancia parecidas cada vez. Después podés comparar ese mismo ángulo en “Comparar”.</p><div class="camera-stage"><video id="cameraVideo" autoplay playsinline muted></video></div><button id="startCamera" class="boton" type="button">Activar cámara frontal</button><button id="captureCamera" class="boton" type="button" disabled>Guardar foto</button><p class="fineprint">Vista sin efecto espejo. La imagen se guarda en JPG.</p>`);
-  $("#startCamera").onclick=async()=>{try{if(!navigator.mediaDevices?.getUserMedia)throw Error("Abrí SCAR en Safari o Chrome por HTTPS. También podés usar la galería.");const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1200},height:{ideal:1600}},audio:false});if(!$("#extraDialog").open || !$("#cameraVideo")){s.getTracks().forEach(t=>t.stop());return;}stream?.getTracks().forEach(t=>t.stop());stream=s;$("#cameraVideo").srcObject=s;await $("#cameraVideo").play();$("#captureCamera").disabled=false;}catch(e){$("#extraError").textContent=e.name==="NotAllowedError"?"Permití la cámara en el navegador o usá la galería para elegir de la galería.":e.message;}};
-  $("#captureCamera").onclick=()=>{const angle=$("#cameraAngle").value;A.action(async()=>{try{const v=$("#cameraVideo");if(!v.videoWidth)throw Error("Esperá a que se vea la cámara.");const c=document.createElement("canvas"),scale=Math.min(1,1200/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext("2d").drawImage(v,0,0,c.width,c.height);const blob=await new Promise(resolve=>c.toBlob(resolve,"image/jpeg",.82));if(!blob)throw Error("No se pudo capturar la foto.");if(cameraOwner!==A.owner())throw Error("Cambió la cuenta. Volvé a abrir la cámara.");await A.mutate(r=>{r.fotos ||= [];if(r.fotos.length>=3)throw Error("Ya tenés 3 fotos. Quitá una antes de agregar otra.");r.fotos.push({id:crypto.randomUUID(),blob,angulo:angle});},true,cameraDate);$("#extraDialog").close();A.toast("Foto guardada.");}catch(e){$("#extraError").textContent=e.message;}});};
+  $("#startCamera").onclick=async()=>{try{if(!navigator.mediaDevices?.getUserMedia)throw Error("Abrí SCAR en Safari o Chrome por HTTPS. También podés usar la galería.");const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1200},height:{ideal:1600}},audio:false});if(!$("#extraDialog").open || !$("#cameraVideo")){s.getTracks().forEach(t=>t.stop());return;}stream?.getTracks().forEach(t=>t.stop());stream=s;$("#cameraVideo").srcObject=s;await $("#cameraVideo").play();$("#captureCamera").disabled=false;}catch(e){$("#extraError").textContent=e?.name==="NotAllowedError"?"Permití la cámara en el navegador o usá la galería para elegir de la galería.":(e?.message || "No se pudo completar la operación. Intentá de nuevo.");}};
+  $("#captureCamera").onclick=()=>{const angle=$("#cameraAngle").value;A.action(async()=>{try{const v=$("#cameraVideo");if(!v.videoWidth)throw Error("Esperá a que se vea la cámara.");const c=document.createElement("canvas"),scale=Math.min(1,1200/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext("2d").drawImage(v,0,0,c.width,c.height);const blob=await new Promise(resolve=>c.toBlob(resolve,"image/jpeg",.82));if(!blob)throw Error("No se pudo capturar la foto.");if(cameraOwner!==A.owner())throw Error("Cambió la cuenta. Volvé a abrir la cámara.");await A.mutate(r=>{r.fotos ||= [];if(r.fotos.length>=3)throw Error("Ya tenés 3 fotos. Quitá una antes de agregar otra.");r.fotos.push({id:crypto.randomUUID(),blob,angulo:angle});},true,cameraDate);$("#extraDialog").close();A.toast("Foto guardada.");}catch(e){$("#extraError").textContent=(e?.message || "No se pudo completar la operación. Intentá de nuevo.");}});};
 }

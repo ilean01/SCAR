@@ -43,7 +43,7 @@ export function put(db, t, row, dirty = true) {
     }
     tx.objectStore(t).put(data);
     tx.oncomplete = () => resolve(data);
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = (event) => reject(tx.error || event.target?.error || Error("No se pudo guardar."));
     tx.onabort = () => reject(tx.error || Error("No se pudo guardar."));
   });
 }
@@ -54,12 +54,17 @@ export function atomic(db, t, key, fn) {
       q = s.get(key);
     let data;
     q.onsuccess = () => {
-      data = fn(q.result);
-      if (data) s.put(data);
+      try {
+        data = fn(q.result);
+        if (data) s.put(data);
+      } catch (error) {
+        reject(error || Error("No se pudo guardar."));
+        tx.abort();
+      }
     };
     tx.oncomplete = () => resolve(data);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
+    tx.onerror = (event) => reject(tx.error || event.target?.error || Error("No se pudo guardar."));
+    tx.onabort = () => reject(tx.error || Error("Se interrumpió el guardado. Intentá de nuevo."));
   });
 }
 export async function normalizeLegacy(db) {
@@ -84,6 +89,79 @@ export async function normalizeLegacy(db) {
     });
     if (changed) await put(db, "registros", r);
   }
+}
+// Repair imported/seeded aliases and their references in one local transaction.
+// Only never-synced rows may be aliases; edits to existing cloud rows retain
+// their identity and normal revision-conflict handling.
+export function reconcileSymptoms(db, remote) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["sintomas", "registros", "ajustes"], "readwrite");
+    const symptoms = tx.objectStore("sintomas");
+    const query = symptoms.getAll();
+    tx.oncomplete = () => resolve();
+    tx.onerror = (event) => reject(tx.error || event.target?.error || Error("No se pudieron conciliar los síntomas."));
+    tx.onabort = () => reject(tx.error || Error("Se interrumpió la conciliación de síntomas."));
+    query.onsuccess = () => {
+      try {
+        const aliases = new Map();
+        const byName = new Map(remote.map(row => [row.nombre, row]));
+        const local = new Map(query.result.map(row => [row.id, row]));
+        for (const row of query.result) {
+          const canonical = byName.get(row.nombre);
+          if (!canonical || canonical.id === row.id || row.__version || row.__conflict) continue;
+          aliases.set(row.id, canonical.id);
+          if (!local.get(canonical.id)?.__dirty)
+            symptoms.put({ ...canonical, __version: canonical.revision });
+          symptoms.delete(row.id);
+        }
+        if (!aliases.size) return;
+        const records = tx.objectStore("registros").openCursor();
+        records.onsuccess = () => {
+          const cursor = records.result;
+          if (!cursor) return;
+          const row = cursor.value;
+          const used = [...(row.sintomas || []), ...Object.keys(row.intensidades || {}), ...(row.zonas || []).map(z => z.sintoma_id)];
+          if (used.some(id => aliases.has(id))) {
+            row.sintomas = [...new Set((row.sintomas || []).map(id => aliases.get(id) || id))];
+            const intensities = {};
+            for (const [id, value] of Object.entries(row.intensidades || {})) {
+              const canonical = aliases.get(id) || id;
+              intensities[canonical] = Math.max(intensities[canonical] ?? 0, value);
+            }
+            row.intensidades = intensities;
+            const zones = new Map();
+            for (const zone of row.zonas || []) {
+              const next = { ...zone, sintoma_id: aliases.get(zone.sintoma_id) || zone.sintoma_id };
+              const key = JSON.stringify([next.zona_id, next.sintoma_id]);
+              const previous = zones.get(key);
+              if (previous) {
+                next.intensidad = Math.max(previous.intensidad ?? 0, next.intensidad ?? 0) || null;
+                next.notas = [...new Set([previous.notas, next.notas].filter(Boolean))].join("\n") || null;
+              }
+              zones.set(key, next);
+            }
+            row.zonas = [...zones.values()];
+            row.__dirty = crypto.randomUUID();
+            delete row.__error;
+            cursor.update(row);
+          }
+          cursor.continue();
+        };
+        const settings = tx.objectStore("ajustes").openCursor();
+        settings.onsuccess = () => {
+          const cursor = settings.result;
+          if (!cursor) return;
+          const row = cursor.value;
+          if (row.clave.startsWith("importado:sintomas:") && aliases.has(row.valor))
+            cursor.update({ ...row, valor: aliases.get(row.valor) });
+          cursor.continue();
+        };
+      } catch (error) {
+        reject(error);
+        tx.abort();
+      }
+    };
+  });
 }
 export async function seed(db) {
   const setup = await get(db, "ajustes", "inicializado");

@@ -75,7 +75,7 @@ function status(s) {
 function action(fn) {
   queue = queue.then(fn).catch((e) => {
     console.error(e);
-    toast(e.message || "No se pudo guardar. Intentá de nuevo.");
+    toast(e?.message || "No se pudo guardar. Intentá de nuevo.");
   });
   return queue;
 }
@@ -114,7 +114,7 @@ async function sync() {
     )
       await renderHoy();
   } catch (e) {
-    console.warn("SCAR sync:", e.message);
+    console.warn("SCAR sync:", e?.message);
   }
 }
 async function switchAccount() {
@@ -171,15 +171,15 @@ function downloadReminder() {
   toast("Recordatorio listo. Abrí el archivo para agregarlo a tu calendario.");
 }
 function friendly(e) {
-  if (e.status === 400 && /credentials/i.test(e.message))
+  if (e?.status === 400 && /credentials/i.test(e?.message))
     return "El correo o la contraseña no coinciden.";
-  if (e.status === 429) return "Demasiados intentos. Esperá un momento.";
+  if (e?.status === 429) return "Demasiados intentos. Esperá un momento.";
   if (
-    e.code === "PGRST202" ||
-    /scar_guardar|relation .*does not exist/i.test(e.message)
+    e?.code === "PGRST202" ||
+    /scar_guardar|relation .*does not exist/i.test(e?.message)
   )
-    return /scar_guardar_v8/i.test(e.message) ? "Falta ejecutar migrar_v7_a_v8.sql para sincronizar las esperas de tus rutinas. Los cambios siguen guardados aquí." : /scar_guardar_v7/i.test(e.message) ? "Falta ejecutar migrar_v6_a_v7.sql en Supabase. Tus cambios siguen guardados en este dispositivo." : /scar_guardar_v5/i.test(e.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
-  return e.message;
+    return /scar_guardar_v8/i.test(e?.message) ? "Falta ejecutar migrar_v7_a_v8.sql para sincronizar las esperas de tus rutinas. Los cambios siguen guardados aquí." : /scar_guardar_v7/i.test(e?.message) ? "Falta ejecutar migrar_v6_a_v7.sql en Supabase. Tus cambios siguen guardados en este dispositivo." : /scar_guardar_v5/i.test(e?.message) ? "Falta ejecutar migrar_v4_a_v5.sql en Supabase para guardar fotos de productos. La foto sigue en este dispositivo." : "Falta ejecutar el SQL V4 de SCAR en Supabase.";
+  return e?.message || "No se pudo completar la operación. Intentá de nuevo.";
 }
 async function renderHoy() {
   const token = ++renderToken;
@@ -1464,10 +1464,10 @@ async function init() {
   if ("serviceWorker" in navigator)
     navigator.serviceWorker
       .register("./sw.js")
-      .catch((e) => console.warn("SCAR offline:", e.message));
+      .catch((e) => console.warn("SCAR offline:", e?.message));
 }
 init().catch((e) => {
   console.error(e);
   status("No se pudo abrir el diario");
-  toast(e.message);
+  toast(friendly(e));
 });
