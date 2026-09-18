@@ -1,5 +1,5 @@
 import { TABLES } from "./core.js";
-import { all, get, put, atomic } from "./db.js";
+import { all, get, put, atomic, reconcileSymptoms } from "./db.js";
 const jsonRead = (k) => {
   try {
     return JSON.parse(localStorage.getItem(k) || "null");
@@ -253,6 +253,7 @@ export class Cloud {
     status("Sincronizando…");
     try {
       let errors = 0;
+      await reconcileSymptoms(db, await this.rows("sintomas"));
       for (const t of TABLES) {
         for (const row of await all(db, t)) {
           if (!row.__dirty || row.__conflict) continue;
@@ -312,7 +313,7 @@ export class Cloud {
           } catch (e) {
             errors++;
             await atomic(db, t, key, (current) =>
-              current ? { ...current, __error: e.message } : current,
+              current ? { ...current, __error: e?.message || "No se pudo guardar en la nube. Intentá de nuevo." } : current,
             );
             if (!navigator.onLine) throw e;
           }
