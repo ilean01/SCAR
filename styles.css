@@ -1471,3 +1471,47 @@ dialog h2 {
     max-width: 180px;
   }
 }
+
+
+/* Pull-to-refresh: sincroniza datos sin recargar la PWA. */
+#pullRefresh {
+  --pull: 0px;
+  position: fixed;
+  z-index: 1200;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border: 1px solid var(--line, #ddd);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(-58px + var(--pull)));
+  transition: opacity .16s ease, transform .16s ease;
+}
+#pullRefresh.visible { opacity: 1; transition: opacity .08s ease; }
+.pull-refresh-spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: .7;
+}
+#pullRefresh.ready .pull-refresh-spinner { transform: rotate(180deg); }
+#pullRefresh.refreshing .pull-refresh-spinner {
+  animation: scar-pull-spin .75s linear infinite;
+}
+@keyframes scar-pull-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #pullRefresh { transition: none; }
+  #pullRefresh.refreshing .pull-refresh-spinner { animation: none; }
+}
