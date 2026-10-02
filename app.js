@@ -72,6 +72,67 @@ function toast(msg) {
 function status(s) {
   $("#syncStatus").textContent = s;
 }
+function setupPullToRefresh() {
+  let startY = 0, distance = 0, tracking = false, refreshing = false;
+  const indicator = document.createElement("div");
+  indicator.id = "pullRefresh";
+  indicator.setAttribute("role", "status");
+  indicator.setAttribute("aria-live", "polite");
+  indicator.innerHTML = '<span class="pull-refresh-spinner" aria-hidden="true"></span><span>Deslizá para actualizar</span>';
+  document.body.prepend(indicator);
+
+  const label = () => indicator.querySelector("span:last-child");
+  const reset = () => {
+    distance = 0;
+    tracking = false;
+    indicator.classList.remove("ready", "visible");
+    indicator.style.setProperty("--pull", "0px");
+    if (!refreshing) label().textContent = "Deslizá para actualizar";
+  };
+
+  window.addEventListener("touchstart", (e) => {
+    if (refreshing || window.scrollY > 0 || e.touches.length !== 1 || $("#modal")?.open) return;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  window.addEventListener("touchmove", (e) => {
+    if (!tracking || refreshing) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0 || window.scrollY > 0) return reset();
+    distance = Math.min(110, dy * 0.55);
+    indicator.classList.add("visible");
+    indicator.style.setProperty("--pull", distance + "px");
+    const ready = distance >= 64;
+    indicator.classList.toggle("ready", ready);
+    label().textContent = ready ? "Soltá para actualizar" : "Deslizá para actualizar";
+  }, { passive: true });
+
+  window.addEventListener("touchend", () => {
+    if (!tracking || refreshing) return reset();
+    if (distance < 64) return reset();
+    tracking = false;
+    refreshing = true;
+    indicator.classList.add("refreshing", "visible");
+    indicator.classList.remove("ready");
+    indicator.style.setProperty("--pull", "64px");
+    label().textContent = navigator.onLine ? "Actualizando SCAR…" : "Sin conexión";
+    action(async () => {
+      try {
+        if (cloud.user && navigator.onLine) await sync();
+        await renderCurrent();
+        toast(navigator.onLine ? "SCAR está al día." : "Estás sin conexión. Mostramos lo guardado en este dispositivo.");
+      } finally {
+        refreshing = false;
+        indicator.classList.remove("refreshing");
+        reset();
+      }
+    });
+  }, { passive: true });
+
+  window.addEventListener("touchcancel", reset, { passive: true });
+}
+
 function action(fn) {
   queue = queue.then(fn).catch((e) => {
     console.error(e);
@@ -1447,6 +1508,7 @@ async function init() {
   });
   await normalizeLegacy(guest);
   events();
+  setupPullToRefresh();
   const callback = cloud.configured ? await cloud.consumeCallback() : null;
   await switchAccount();
   if (callback === "recovery")
